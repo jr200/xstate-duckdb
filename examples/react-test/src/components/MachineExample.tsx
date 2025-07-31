@@ -1,17 +1,17 @@
 import React, { useState } from 'react'
-import { duckdbMachine } from 'xstate-duckdb'
+import { duckdbMachine, InitDuckDbParams, safeStringify } from 'xstate-duckdb'
 import { useActor } from '@xstate/react'
+import { DuckDBConfig, InstantiationProgress, LogLevel } from '@duckdb/duckdb-wasm'
 
 export const MachineExample = () => {
   const [state, send] = useActor(duckdbMachine)
   const [query, setQuery] = useState('SELECT * FROM information_schema.tables')
-  const [config, setConfig] = useState(`{
-  "path": "test.db",
+  const [config, setConfig] = useState<DuckDBConfig>({
   "query": {
     "castBigIntToDouble": true,
-    "castDecimalToDouble": true
+    "castDecimalToDouble": true,
   }
-}`)
+})
   const [tablesConfig, setTablesConfig] = useState(`[
   {
     "name": "example_table",
@@ -25,11 +25,17 @@ export const MachineExample = () => {
 
   const handleConfigure = () => {
     try {
-      const configObj = JSON.parse(config)
+      const configObj: InitDuckDbParams = { 
+        logLevel: LogLevel.DEBUG,
+        progress: (progress: InstantiationProgress) => {
+          console.log('db loading progress', progress)
+        },
+        config,
+      }
       const tablesObj = JSON.parse(tablesConfig)
       send({
         type: 'CONFIGURE',
-        config: configObj,
+        dbInitParams: configObj,
         tables: tablesObj,
       })
       setOutput('Configuration applied successfully')
@@ -87,8 +93,8 @@ export const MachineExample = () => {
             <div>
               <h3 className='text-sm font-medium text-gray-700 mb-2'>DuckDB Configuration</h3>
               <textarea
-                value={config}
-                onChange={e => setConfig(e.target.value)}
+                value={safeStringify(config, 2)}
+                onChange={e => setConfig(JSON.parse(e.target.value))}
                 className='w-full h-64 p-2 border border-gray-300 rounded-md font-mono text-xs'
                 placeholder='Enter DuckDB configuration JSON...'
               />

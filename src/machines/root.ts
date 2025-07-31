@@ -1,18 +1,19 @@
 import { assign, setup } from 'xstate'
-import { AsyncDuckDB, DuckDBConfig } from '@duckdb/duckdb-wasm'
+import { AsyncDuckDB } from '@duckdb/duckdb-wasm'
 import { TableDefinition } from '../lib/types'
-import { initDuckDb } from '../actors/init'
+import { closeDuckDb, InitDuckDbParams, initDuckDb } from '../actors/init'
 
 interface Context {
-  db: AsyncDuckDB | null
-  config: DuckDBConfig | null
+  duckDbHandle: AsyncDuckDB | null
+  duckDbVersion: string | null
+  dbInitParams: InitDuckDbParams | null
   tables: Record<string, TableDefinition>
   subscriptions: Record<string, Set<() => void>>
   loadedVersions: Record<string, number[]>
 }
 
 type Events =
-  | { type: 'CONFIGURE'; config: DuckDBConfig; tables: TableDefinition[] }
+  | { type: 'CONFIGURE'; dbInitParams: InitDuckDbParams; tables: TableDefinition[] }
   | { type: 'CONNECT' }
   | { type: 'LOAD_TABLE'; table: TableDefinition; base64ipc: string }
   | { type: 'DELETE_TABLE'; tableName: string }
@@ -30,12 +31,14 @@ export const duckdbMachine = setup({
     events: {} as Events,
   },
   actors: {
-    initDuckDb: initDuckDb
+    initDuckDb,
+    closeDuckDb
   },
 }).createMachine({
   context: {
-    db: null,
-    config: null,
+    duckDbHandle: null,
+    duckDbVersion: null,
+    dbInitParams: null,
     tables: {},
     subscriptions: {},
     loadedVersions: {},
@@ -50,7 +53,7 @@ export const duckdbMachine = setup({
         CONFIGURE: {
           target: 'configured',
           actions: assign({
-            config: ({ event }) => event.config,
+            dbInitParams: ({ event }) => event.dbInitParams,
             tables: ({ event }) => Object.fromEntries(event.tables.map(t => [t.name, t])),
           }),
         },
@@ -71,15 +74,18 @@ export const duckdbMachine = setup({
     initializing: {
       entry: [
         assign({
-          db: null,
+          duckDbHandle: null,
         }),
       ],
       invoke: {
         src: 'initDuckDb',
-        input: ({ context }) => ({ config: context.config }),
+        input: ({ context }) => ({ ...context.dbInitParams! }),
         onDone: {
           target: 'ready.connected',
-          actions: assign(({ event }) => event.output ),
+          actions: assign(({ event }) => ({
+            duckDbHandle: event.output.db,
+            duckDbVersion: event.output.version,
+          })),
         },
       },
     },
@@ -119,9 +125,17 @@ export const duckdbMachine = setup({
             },
           },
         },
-
         notReady: {
-          type: 'final',
+          invoke: {
+            src: 'closeDuckDb',
+            input: ({ context }: { context: Context }) => ({ db: context.duckDbHandle }),
+            onDone: {
+              actions: assign({
+                duckDbHandle: null,
+                duckDbVersion: null,
+              }),
+            },
+          },
         },
       },
       onDone: {
