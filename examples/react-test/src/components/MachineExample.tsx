@@ -10,8 +10,11 @@ const cn = (...classes: (string | undefined | null | false)[]) => {
 
 interface DisplayOutputResult {
   type:
-    | 'query.auto_commit'
-    | 'query.transaction'
+    | 'query.execute'
+    | 'transaction.begin'
+    | 'transaction.execute'
+    | 'transaction.commit'
+    | 'transaction.rollback'
     | 'subscribe'
     | 'unsubscribe'
     | 'disconnect'
@@ -83,16 +86,34 @@ export const MachineExample = () => {
           hover: 'hover:bg-yellow-600',
           disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
         }
-      case 'query.auto_commit':
+      case 'query.execute':
         return {
           base: 'bg-purple-500',
           hover: 'hover:bg-purple-600',
           disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
         }
-      case 'query.transaction':
+      case 'transaction.begin':
         return {
-          base: 'bg-pink-500',
-          hover: 'hover:bg-pink-600',
+          base: 'bg-teal-500',
+          hover: 'hover:bg-teal-600',
+          disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
+        }
+      case 'transaction.execute':
+        return {
+          base: 'bg-indigo-500',
+          hover: 'hover:bg-indigo-600',
+          disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
+        }
+      case 'transaction.commit':
+        return {
+          base: 'bg-emerald-500',
+          hover: 'hover:bg-emerald-600',
+          disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
+        }
+      case 'transaction.rollback':
+        return {
+          base: 'bg-rose-500',
+          hover: 'hover:bg-rose-600',
           disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
         }
       case 'subscribe':
@@ -172,17 +193,17 @@ export const MachineExample = () => {
   }
 
   const handleQueryAutoCommit = () => {
-    addOutput('query.auto_commit', `Query sent: ${query}`)
+    addOutput('query.execute', `Query sent: ${query}`)
     const queryParams: QueryDbParams = {
       sql: query,
       callback: data => {
-        addOutput('query.auto_commit', data)
+        addOutput('query.execute', data)
       },
-      description: 'query.auto_commit',
+      description: 'execute',
       resultType: 'json',
     }
     send({
-      type: 'QUERY.AUTO_COMMIT',
+      type: 'QUERY.EXECUTE',
       queryParams,
     })
   }
@@ -195,6 +216,37 @@ export const MachineExample = () => {
   const handleUnsubscribe = () => {
     send({ type: 'UNSUBSCRIBE', tableName: 'example_table', callback: () => {} })
     addOutput('unsubscribe', 'Unsubscribe command sent')
+  }
+
+  const handleTransactionBegin = () => {
+    send({ type: 'TRANSACTION.BEGIN' })
+    addOutput('transaction.begin', 'Transaction begin command sent')
+  }
+
+  const handleTransactionExecute = () => {
+    addOutput('transaction.execute', `Query sent: ${query}`)
+    const queryParams: QueryDbParams = {
+      sql: query,
+      callback: data => {
+        addOutput('transaction.execute', data)
+      },
+      description: 'transaction.execute',
+      resultType: 'json',
+    }
+    send({
+      type: 'TRANSACTION.EXECUTE',
+      queryParams,
+    })
+  }
+
+  const handleTransactionCommit = () => {
+    send({ type: 'TRANSACTION.COMMIT' })
+    addOutput('transaction.commit', 'Transaction commit command sent')
+  }
+
+  const handleTransactionRollback = () => {
+    send({ type: 'TRANSACTION.ROLLBACK' })
+    addOutput('transaction.rollback', 'Transaction rollback command sent')
   }
 
   return (
@@ -315,30 +367,79 @@ export const MachineExample = () => {
             <button
               disabled={
                 !state.can({
-                  type: 'QUERY.AUTO_COMMIT',
+                  type: 'QUERY.EXECUTE',
                   queryParams: {
                     sql: query,
                     callback: () => {},
-                    description: 'QUERY.AUTO_COMMIT',
+                    description: 'QUERY.EXECUTE',
                     resultType: 'arrow',
                   },
                 })
               }
               onClick={() => handleQueryAutoCommit()}
               className={getButtonClasses(
-                'query.auto_commit',
+                'query.execute',
                 !state.can({
-                  type: 'QUERY.AUTO_COMMIT',
+                  type: 'QUERY.EXECUTE',
                   queryParams: {
                     sql: query,
                     callback: () => {},
-                    description: 'QUERY.AUTO_COMMIT',
+                    description: 'QUERY.EXECUTE',
                     resultType: 'arrow',
                   },
                 })
               )}
             >
-              Query (auto)
+              Query (auto-commit)
+            </button>
+            <button
+              disabled={!state.can({ type: 'TRANSACTION.BEGIN' })}
+              onClick={handleTransactionBegin}
+              className={getButtonClasses('transaction.begin', !state.can({ type: 'TRANSACTION.BEGIN' }))}
+            >
+              Begin Transaction
+            </button>
+            <button
+              disabled={
+                !state.can({
+                  type: 'TRANSACTION.EXECUTE',
+                  queryParams: {
+                    sql: query,
+                    callback: () => {},
+                    description: 'TRANSACTION.EXECUTE',
+                    resultType: 'arrow',
+                  },
+                })
+              }
+              onClick={handleTransactionExecute}
+              className={getButtonClasses(
+                'transaction.execute',
+                !state.can({
+                  type: 'TRANSACTION.EXECUTE',
+                  queryParams: {
+                    sql: query,
+                    callback: () => {},
+                    description: 'TRANSACTION.EXECUTE',
+                    resultType: 'arrow',
+                  },
+                })
+              )}
+            >
+              Execute
+            </button>
+            <button
+              disabled={!state.can({ type: 'TRANSACTION.COMMIT' })}
+              onClick={handleTransactionCommit}
+              className={getButtonClasses('transaction.commit', !state.can({ type: 'TRANSACTION.COMMIT' }))}
+            >
+              Commit
+            </button>
+            <button
+              disabled={!state.can({ type: 'TRANSACTION.ROLLBACK' })}
+              onClick={handleTransactionRollback}
+              className={getButtonClasses('transaction.rollback', !state.can({ type: 'TRANSACTION.ROLLBACK' }))}
+            >
+              Rollback
             </button>
             <button
               disabled={!state.can({ type: 'SUBSCRIBE', tableName: '', callback: () => {} })}

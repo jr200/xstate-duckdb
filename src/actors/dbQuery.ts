@@ -1,4 +1,4 @@
-import { AsyncDuckDBConnection } from '@duckdb/duckdb-wasm'
+import { AsyncDuckDB, AsyncDuckDBConnection } from '@duckdb/duckdb-wasm'
 import { fromPromise } from 'xstate'
 import { JSONObject } from '../lib/types'
 import { arrowToJSON } from 'duckdb-wasm-kit'
@@ -12,8 +12,15 @@ export interface QueryDbParams {
 }
 
 export const queryDuckDb = fromPromise(
-  async ({ input }: { input: QueryDbParams & { connection: Promise<AsyncDuckDBConnection> } }) => {
-    return queryDuckDbInternal({ ...input, connection: await input.connection })
+  async ({
+    input,
+  }: {
+    input: QueryDbParams & { connection: Promise<AsyncDuckDBConnection> | AsyncDuckDBConnection }
+  }) => {
+    return queryDuckDbInternal({
+      ...input,
+      connection: input.connection instanceof Promise ? await input.connection : input.connection,
+    })
   }
 )
 
@@ -65,3 +72,19 @@ export async function duckDbExecuteToJson(
   const jsonResponse = arrowToJSON(response)
   return jsonResponse
 }
+
+export const beginTransaction = fromPromise(
+  async ({ input }: { input: AsyncDuckDB }): Promise<AsyncDuckDBConnection> => {
+    const connection = await input.connect()
+    await connection.query('BEGIN TRANSACTION;')
+    return connection
+  }
+)
+
+export const commitTransaction = fromPromise(async ({ input }: { input: AsyncDuckDBConnection }): Promise<void> => {
+  await input.query('COMMIT;')
+})
+
+export const rollbackTransaction = fromPromise(async ({ input }: { input: AsyncDuckDBConnection }): Promise<void> => {
+  await input.query('ROLLBACK;')
+})
