@@ -2,7 +2,7 @@ import { AsyncDuckDBConnection } from '@duckdb/duckdb-wasm'
 import pako from 'pako'
 import { TableDefinition } from './types'
 import { registerDatasetOnly } from './catalog'
-import { duckDbExecuteToArrow } from './query'
+import { queryDuckDbInternal } from '../actors/dbQuery'
 
 // export const loadTable = async (tbl: TableDefinition, base64ipc: string): Promise<string | null> => {
 //     if (!db) {
@@ -144,11 +144,12 @@ async function loadFromArrowIpc(
       throw error
     }
   }
-  const res = await duckDbExecuteToArrow(
-    'load-from-arrow-ipc-rowcount',
-    `SELECT count(*) AS rowcount FROM ${tableName}`,
-    connection
-  )
+  const res = await queryDuckDbInternal({
+    description: 'load-from-arrow-ipc-rowcount',
+    sql: `SELECT count(*) AS rowcount FROM ${tableName}`,
+    resultType: 'arrow',
+    connection: connection,
+  })
   const rowCount = res?.toArray()?.[0]?.rowcount
   console.log(`DuckDB loaded ${dbSchema}.${tableName}: rows=${rowCount}, size=${msgSizeMb.toFixed(3)}mb`)
 }

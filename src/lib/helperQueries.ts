@@ -1,7 +1,7 @@
 import { AsyncDuckDBConnection } from '@duckdb/duckdb-wasm'
 import { DUCKDB_TABLE, TableDefinition } from './types'
 import { makeTableName } from './catalog'
-import { duckDbExecuteToArrow } from './query'
+import { queryDuckDbInternal } from '../actors/dbQuery'
 
 export async function tryRollback(connection: AsyncDuckDBConnection) {
   try {
@@ -33,6 +33,11 @@ export async function tableExists(tableName: string, connection: AsyncDuckDBConn
       WHERE table_name='${tableName}'
     `
 
-  const response = await duckDbExecuteToArrow('table-exists', sqlText, connection)
+  const response = await queryDuckDbInternal({
+    description: 'table-exists',
+    sql: sqlText,
+    resultType: 'arrow',
+    connection: connection,
+  })
   return response?.numRows === 1
 }
