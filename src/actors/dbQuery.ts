@@ -7,23 +7,19 @@ import { Table } from 'apache-arrow'
 export interface QueryDbParams {
   description: string
   sql: string
-  type: 'arrow' | 'json'
+  resultType: 'arrow' | 'json'
   callback?: (result: any) => void
 }
 
-export const queryDuckDbActor = fromPromise(async ({ input }: { input: QueryDbParams & { connection: AsyncDuckDBConnection | Promise<AsyncDuckDBConnection> } }) => {
-  console.log('queryDuckDbActor input', input)
-  return queryDuckDb({ ...input })
-})
-
-export async function queryDuckDb(input: QueryDbParams & { connection: AsyncDuckDBConnection | Promise<AsyncDuckDBConnection> }): Promise<any> {
-  if (input.connection instanceof Promise) {
-    input.connection = await input.connection
+export const queryDuckDb = fromPromise(
+  async ({ input }: { input: QueryDbParams & { connection: Promise<AsyncDuckDBConnection> } }) => {
+    return queryDuckDbInternal({ ...input, connection: await input.connection })
   }
+)
 
-  console.log('queryDuckDb input', input)
+export async function queryDuckDbInternal(input: QueryDbParams & { connection: AsyncDuckDBConnection }): Promise<any> {
   let result: any = null
-  if (input.type === 'arrow') {
+  if (input.resultType === 'arrow') {
     result = await duckDbExecuteToArrow(input.description, input.sql, input.connection)
   } else {
     result = await duckDbExecuteToJson(input.description, input.sql, input.connection)

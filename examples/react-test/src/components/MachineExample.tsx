@@ -26,7 +26,7 @@ interface DisplayOutputResult {
 
 export const MachineExample = () => {
   const [state, send] = useActor(duckdbMachine)
-  const [query, setQuery] = useState('SELECT * FROM information_schema.tables;')
+  const [query, setQuery] = useState('SELECT * FROM duckdb_databases();')
   const [outputs, setOutputs] = useState<DisplayOutputResult[]>([])
   const [config, setConfig] = useState<DuckDBConfig>({
     query: {
@@ -171,8 +171,16 @@ export const MachineExample = () => {
     addOutput('reset', 'Reset command sent')
   }
 
-  const handleQuery = (queryParams: QueryDbParams) => {
-    addOutput('query.auto_commit', `Query sent: ${queryParams.sql}`)
+  const handleQueryAutoCommit = () => {
+    addOutput('query.auto_commit', `Query sent: ${query}`)
+    const queryParams: QueryDbParams = {
+      sql: query,
+      callback: data => {
+        addOutput('query.auto_commit', data)
+      },
+      description: 'query.auto_commit',
+      resultType: 'json',
+    }
     send({
       type: 'QUERY.AUTO_COMMIT',
       queryParams,
@@ -180,12 +188,12 @@ export const MachineExample = () => {
   }
 
   const handleSubscribe = () => {
-    send({ type: 'SUBSCRIBE' })
+    send({ type: 'SUBSCRIBE', tableName: 'example_table', callback: () => {} })
     addOutput('subscribe', 'Subscribe command sent')
   }
 
   const handleUnsubscribe = () => {
-    send({ type: 'UNSUBSCRIBE' })
+    send({ type: 'UNSUBSCRIBE', tableName: 'example_table', callback: () => {} })
     addOutput('unsubscribe', 'Unsubscribe command sent')
   }
 
@@ -215,7 +223,7 @@ export const MachineExample = () => {
                     <span className='text-gray-500 text-xs'>{output.timestamp.toLocaleTimeString()}</span>
                   </div>
                   <div className='font-mono text-sm text-gray-800 break-words'>
-                    {typeof output.data === 'string' ? output.data : JSON.stringify(output.data, null, 2)}
+                    {typeof output.data === 'string' ? output.data : safeStringify(output.data, 2)}
                   </div>
                 </div>
               ))}
@@ -264,9 +272,22 @@ export const MachineExample = () => {
           <div className='mb-3 mt-4' />
           <div className='flex flex-wrap gap-2'>
             <button
-              disabled={!state.can({ type: 'CONFIGURE', config: {}, tables: [] })}
+              disabled={
+                !state.can({
+                  type: 'CONFIGURE',
+                  dbInitParams: { config: {}, logLevel: LogLevel.DEBUG, progress: () => {} },
+                  tables: [],
+                })
+              }
               onClick={handleConfigure}
-              className={getButtonClasses('configure', !state.can({ type: 'CONFIGURE', config: {}, tables: [] }))}
+              className={getButtonClasses(
+                'configure',
+                !state.can({
+                  type: 'CONFIGURE',
+                  dbInitParams: { config: {}, logLevel: LogLevel.DEBUG, progress: () => {} },
+                  tables: [],
+                })
+              )}
             >
               Configure
             </button>
@@ -292,11 +313,29 @@ export const MachineExample = () => {
               Reset
             </button>
             <button
-              disabled={!state.can({ type: 'QUERY.AUTO_COMMIT', queryParams: { sql: query, callback: () => {}, description: 'query.auto_commit', type: 'arrow' } })}
-              onClick={() => handleQuery({ sql: query, callback: () => {console.log('query callback')}, description: 'query.auto_commit', type: 'arrow' })}
+              disabled={
+                !state.can({
+                  type: 'QUERY.AUTO_COMMIT',
+                  queryParams: {
+                    sql: query,
+                    callback: () => {},
+                    description: 'QUERY.AUTO_COMMIT',
+                    resultType: 'arrow',
+                  },
+                })
+              }
+              onClick={() => handleQueryAutoCommit()}
               className={getButtonClasses(
                 'query.auto_commit',
-                !state.can({ type: 'QUERY.AUTO_COMMIT', queryParams: { sql: query, callback: () => {}, description: 'query.auto_commit', type: 'arrow' } })
+                !state.can({
+                  type: 'QUERY.AUTO_COMMIT',
+                  queryParams: {
+                    sql: query,
+                    callback: () => {},
+                    description: 'QUERY.AUTO_COMMIT',
+                    resultType: 'arrow',
+                  },
+                })
               )}
             >
               Query (auto)

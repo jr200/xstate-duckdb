@@ -1,6 +1,6 @@
 import { AsyncDuckDBConnection } from '@duckdb/duckdb-wasm'
 import { DUCKDB_TABLE, TableDefinition } from './types'
-import { queryDuckDb } from '../actors/dbQuery'
+import { queryDuckDbInternal } from '../actors/dbQuery'
 import { deleteTableStatement, tableExists, tryRollback } from './helperQueries'
 
 // Separate function to register new dataset WITHOUT cleaning up old ones
@@ -36,10 +36,10 @@ export async function registerDatasetOnly(
       COMMIT;
       `
 
-    const response = await queryDuckDb({
+    const response = await queryDuckDbInternal({
       description: 'register-dataset-only',
       sql: registerStatement,
-      type: 'json',
+      resultType: 'json',
       connection: connection,
     })
     const { id } = response?.at(0) ?? { id: undefined }
@@ -72,10 +72,10 @@ export async function findVersionsToPrune(tbl: TableDefinition, connection: Asyn
       WHERE rn >= ${tbl.config.maxVersions};
     `
 
-  const toDelete = await queryDuckDb({
+  const toDelete = await queryDuckDbInternal({
     description: 'find-versions-to-prune',
     sql: sqlText,
-    type: 'json',
+    resultType: 'json',
     connection: connection,
   })
   return toDelete.map(({ id }: { id: number }) => id)
@@ -112,10 +112,10 @@ export async function cleanupOldTables(
 
     cleanupStatement += 'COMMIT;'
 
-    await queryDuckDb({
+    await queryDuckDbInternal({
       description: 'cleanup-old-tables',
       sql: cleanupStatement,
-      type: 'json',
+      resultType: 'json',
       connection: connection,
     })
     console.log(`✅ Cleaned up old tables for ${tbl.name}`)
