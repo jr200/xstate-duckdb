@@ -1,0 +1,45 @@
+{
+  "name": "xstate-duckdb",
+  "version": "0.1.0",
+  "author": "jr200",
+  "description": "XState machine for DuckDB",
+  "repository": "https://github.com/jr200/xstate-duckdb",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "tsc --watch",
+    "build": "tsc",
+    "prettier": "prettier --check \"**/*.{js,jsx,ts,tsx}\"",
+    "lint": "eslint \"**/*.{js,jsx,ts,tsx}\"",
+    "format": "prettier --write \"**/*.{js,jsx,ts,tsx}\"",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:watch": "vitest --watch"
+  },
+  "keywords": [],
+  "packageManager": "pnpm@10.12.1",
+  "dependencies": {
+    "apache-arrow": "^21.0.0",
+    "@duckdb/duckdb-wasm": "1.29.1-dev132.0",
+    "duckdb-wasm-kit": "^0.1.39",
+    "pako": "^2.1.0",
+    "xstate": "^5.20.1"
+  },
+  "devDependencies": {
+    "@apache-arrow/ts": "^21.0.0",
+    "@eslint/js": "^9.32.0",
+    "@statelyai/inspect": "^0.4.0",
+    "@types/pako": "^2.0.3",
+    "eslint": "^9.32.0",
+    "globals": "^16.3.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.38.0",
+    "vitest": "^3.2.4"
+  }
+}
