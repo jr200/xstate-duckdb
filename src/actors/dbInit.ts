@@ -1,5 +1,13 @@
-import { fromPromise } from "xstate"
-import { AsyncDuckDB, ConsoleLogger, DuckDBConfig, getJsDelivrBundles, InstantiationProgressHandler, LogLevel, selectBundle } from "@duckdb/duckdb-wasm"
+import { fromPromise } from 'xstate'
+import {
+  AsyncDuckDB,
+  ConsoleLogger,
+  DuckDBConfig,
+  getJsDelivrBundles,
+  InstantiationProgressHandler,
+  LogLevel,
+  selectBundle,
+} from '@duckdb/duckdb-wasm'
 
 export interface InitDuckDbParams {
   config: DuckDBConfig | null

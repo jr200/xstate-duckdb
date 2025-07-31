@@ -1,6 +1,6 @@
 import { AsyncDuckDBConnection } from '@duckdb/duckdb-wasm'
 import { DUCKDB_TABLE, TableDefinition } from './types'
-import { duckDbExecuteToJson } from './query'
+import { queryDuckDb } from '../actors/dbQuery'
 import { deleteTableStatement, tableExists, tryRollback } from './helperQueries'
 
 // Separate function to register new dataset WITHOUT cleaning up old ones
@@ -36,7 +36,12 @@ export async function registerDatasetOnly(
       COMMIT;
       `
 
-    const response = await duckDbExecuteToJson('register-dataset-only', registerStatement, connection)
+    const response = await queryDuckDb({
+      description: 'register-dataset-only',
+      sql: registerStatement,
+      type: 'json',
+      connection: connection,
+    })
     const { id } = response?.at(0) ?? { id: undefined }
     const numericId = id !== undefined ? (id as unknown as number) : null
     const tableName = makeTableName(tbl, numericId ?? undefined)
@@ -67,8 +72,13 @@ export async function findVersionsToPrune(tbl: TableDefinition, connection: Asyn
       WHERE rn >= ${tbl.config.maxVersions};
     `
 
-  const toDelete = await duckDbExecuteToJson('find-versions-to-prune', sqlText, connection)
-  return toDelete.map(({ id }) => id as unknown as number)
+  const toDelete = await queryDuckDb({
+    description: 'find-versions-to-prune',
+    sql: sqlText,
+    type: 'json',
+    connection: connection,
+  })
+  return toDelete.map(({ id }: { id: number }) => id)
 }
 
 export function makeTableName(tbl: TableDefinition, id?: number): string {
@@ -102,7 +112,12 @@ export async function cleanupOldTables(
 
     cleanupStatement += 'COMMIT;'
 
-    await duckDbExecuteToJson('cleanup-old-tables', cleanupStatement, connection)
+    await queryDuckDb({
+      description: 'cleanup-old-tables',
+      sql: cleanupStatement,
+      type: 'json',
+      connection: connection,
+    })
     console.log(`✅ Cleaned up old tables for ${tbl.name}`)
   } catch (error) {
     console.error(`Error cleaning up old tables for ${tbl.name}:`, error)

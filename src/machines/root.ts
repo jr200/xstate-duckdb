@@ -1,7 +1,8 @@
 import { assign, setup } from 'xstate'
 import { AsyncDuckDB } from '@duckdb/duckdb-wasm'
 import { TableDefinition } from '../lib/types'
-import { closeDuckDb, InitDuckDbParams, initDuckDb } from '../actors/init'
+import { closeDuckDb, InitDuckDbParams, initDuckDb } from '../actors/dbInit'
+import { QueryDbParams, queryDuckDbActor } from '../actors/dbQuery'
 
 interface Context {
   duckDbHandle: AsyncDuckDB | null
@@ -17,7 +18,7 @@ type Events =
   | { type: 'CONNECT' }
   | { type: 'LOAD_TABLE'; table: TableDefinition; base64ipc: string }
   | { type: 'DELETE_TABLE'; tableName: string }
-  | { type: 'QUERY'; sql: string; callback: (rows: any[]) => void }
+  | { type: 'QUERY.AUTO_COMMIT'; queryParams: QueryDbParams }
   | { type: 'SUBSCRIBE'; tableName: string; callback: () => void }
   | { type: 'UNSUBSCRIBE'; tableName: string; callback: () => void }
   | { type: 'RECONNECT' }
@@ -32,7 +33,8 @@ export const duckdbMachine = setup({
   },
   actors: {
     initDuckDb,
-    closeDuckDb
+    closeDuckDb,
+    queryDuckDb: queryDuckDbActor,
   },
 }).createMachine({
   context: {
@@ -104,7 +106,31 @@ export const duckdbMachine = setup({
               target: 'connected',
             },
 
-            QUERY: {
+            'QUERY.AUTO_COMMIT': {
+              invoke: {
+                src: 'queryDuckDb',
+                input: ({
+                  event,
+                  context,
+                }: {
+                  event: QueryDbParams
+                  context: Context
+                }) => {
+                  console.log('QUERY.AUTO_COMMIT context', context)
+
+                  if (!context.duckDbHandle) {
+                    throw new Error('DuckDB handle not found')
+                  }
+
+                  return {
+                    description: event.description,
+                    sql: event.sql,
+                    type: event.type,
+                    connection: context.duckDbHandle.connect(),
+                    callback: event.callback,
+                  }
+                },
+              },
               target: 'connected',
             },
 
@@ -143,8 +169,7 @@ export const duckdbMachine = setup({
       },
     },
 
-    error: {
-    },
+    error: {},
 
     closed: {
       type: 'final',
