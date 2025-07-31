@@ -118,44 +118,51 @@ export const MachineExample = () => {
           <div className='mb-3 mt-4' />
           <div className='flex flex-wrap gap-2'>
             <button
+              disabled={!state.can({type: 'CONFIGURE', config: {}, tables: []})}
               onClick={handleConfigure}
-              className='px-3 py-1.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors text-sm'
+              className='px-3 py-1.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400 disabled:text-gray-200 disabled:cursor-not-allowed transition-colors text-sm'
             >
               Configure
             </button>
             <button
+              disabled={!state.can({type: 'CONNECT'})}
               onClick={handleConnect}
-              className='px-3 py-1.5 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors text-sm'
+              className='px-3 py-1.5 bg-green-500 text-white rounded-md hover:bg-green-600 disabled:bg-gray-400 disabled:text-gray-200 disabled:cursor-not-allowed transition-colors text-sm'
             >
               Connect
             </button>
             <button
+              disabled={!state.can({type: 'DISCONNECT'})}
               onClick={handleDisconnect}
-              className='px-3 py-1.5 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors text-sm'
+              className='px-3 py-1.5 bg-red-500 text-white rounded-md hover:bg-red-600 disabled:bg-gray-400 disabled:text-gray-200 disabled:cursor-not-allowed transition-colors text-sm'
             >
               Disconnect
             </button>
             <button
+              disabled={!state.can({type: 'RESET'})}
               onClick={handleReset}
-              className='px-3 py-1.5 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors text-sm'
+              className='px-3 py-1.5 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 disabled:bg-gray-400 disabled:text-gray-200 disabled:cursor-not-allowed transition-colors text-sm'
             >
               Reset
             </button>
             <button
+              disabled={!state.can({type: 'QUERY', sql: query, callback: () => {}})}
               onClick={handleQuery}
-              className='px-3 py-1.5 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors text-sm'
+              className='px-3 py-1.5 bg-purple-500 text-white rounded-md hover:bg-purple-600 disabled:bg-gray-400 disabled:text-gray-200 disabled:cursor-not-allowed transition-colors text-sm'
             >
               Query
             </button>
             <button
+              disabled={!state.can({type: 'SUBSCRIBE', tableName: '', callback: () => {}})}
               onClick={handleSubscribe}
-              className='px-3 py-1.5 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition-colors text-sm'
+              className='px-3 py-1.5 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 disabled:bg-gray-400 disabled:text-gray-200 disabled:cursor-not-allowed transition-colors text-sm'
             >
               Subscribe
             </button>
             <button
+              disabled={!state.can({type: 'UNSUBSCRIBE', tableName: '', callback: () => {}})}
               onClick={handleUnsubscribe}
-              className='px-3 py-1.5 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors text-sm'
+              className='px-3 py-1.5 bg-gray-500 text-white rounded-md hover:bg-gray-600 disabled:bg-gray-400 disabled:text-gray-200 disabled:cursor-not-allowed transition-colors text-sm'
             >
               Unsubscribe
             </button>

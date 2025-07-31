@@ -1,6 +1,7 @@
 import { assign, setup } from 'xstate'
 import { AsyncDuckDB, DuckDBConfig } from '@duckdb/duckdb-wasm'
-import { TableDefinition } from '../actions/types'
+import { TableDefinition } from '../lib/types'
+import { initDuckDb } from '../actors/init'
 
 interface Context {
   db: AsyncDuckDB | null
@@ -12,18 +13,24 @@ interface Context {
 
 type Events =
   | { type: 'CONFIGURE'; config: DuckDBConfig; tables: TableDefinition[] }
+  | { type: 'CONNECT' }
   | { type: 'LOAD_TABLE'; table: TableDefinition; base64ipc: string }
   | { type: 'DELETE_TABLE'; tableName: string }
   | { type: 'QUERY'; sql: string; callback: (rows: any[]) => void }
   | { type: 'SUBSCRIBE'; tableName: string; callback: () => void }
   | { type: 'UNSUBSCRIBE'; tableName: string; callback: () => void }
   | { type: 'RECONNECT' }
+  | { type: 'DISCONNECT' }
+  | { type: 'RESET' }
   | { type: 'CLOSE' }
 
 export const duckdbMachine = setup({
   types: {
     context: {} as Context,
     events: {} as Events,
+  },
+  actors: {
+    initDuckDb: initDuckDb
   },
 }).createMachine({
   context: {
@@ -41,7 +48,7 @@ export const duckdbMachine = setup({
     idle: {
       on: {
         CONFIGURE: {
-          target: 'initializing',
+          target: 'configured',
           actions: assign({
             config: ({ event }) => event.config,
             tables: ({ event }) => Object.fromEntries(event.tables.map(t => [t.name, t])),
@@ -50,7 +57,32 @@ export const duckdbMachine = setup({
       },
     },
 
-    initializing: {},
+    configured: {
+      on: {
+        CONNECT: {
+          target: 'initializing',
+        },
+        RESET: {
+          target: 'idle',
+        },
+      },
+    },
+
+    initializing: {
+      entry: [
+        assign({
+          db: null,
+        }),
+      ],
+      invoke: {
+        src: 'initDuckDb',
+        input: ({ context }) => ({ config: context.config }),
+        onDone: {
+          target: 'ready.connected',
+          actions: assign(({ event }) => event.output ),
+        },
+      },
+    },
 
     ready: {
       initial: 'connected',
@@ -58,26 +90,47 @@ export const duckdbMachine = setup({
       states: {
         connected: {
           on: {
-            LOAD_TABLE: {},
+            LOAD_TABLE: {
+              target: 'connected',
+            },
 
-            DELETE_TABLE: {},
+            DELETE_TABLE: {
+              target: 'connected',
+            },
 
-            QUERY: {},
+            QUERY: {
+              target: 'connected',
+            },
 
-            SUBSCRIBE: {},
+            SUBSCRIBE: {
+              target: 'connected',
+            },
 
-            UNSUBSCRIBE: {},
+            UNSUBSCRIBE: {
+              target: 'connected',
+            },
 
-            RECONNECT: {},
-            CLOSE: {},
+            DISCONNECT: {
+              target: 'notReady',
+            },
+
+            CLOSE: {
+              target: 'notReady',
+            },
           },
         },
 
-        reconnecting: {},
+        notReady: {
+          type: 'final',
+        },
+      },
+      onDone: {
+        target: 'configured',
       },
     },
 
-    error: {},
+    error: {
+    },
 
     closed: {
       type: 'final',
