@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
-import { duckdbMachine, InitDuckDbParams, QueryDbParams, safeStringify } from 'xstate-duckdb'
+import { duckdbMachine, InitDuckDbParams, LoadedTableEntry, QueryDbParams, safeStringify, TableDefinition } from 'xstate-duckdb'
 import { useActor, useSelector } from '@xstate/react'
 import { DuckDBConfig, InstantiationProgress, LogLevel } from '@duckdb/duckdb-wasm'
-import { DisplayOutputResult } from '../types'
+import { DisplayOutputResult } from './types'
 import { cn } from '../utils'
 
 export const MachineExample = () => {
@@ -18,19 +18,17 @@ export const MachineExample = () => {
       castDecimalToDouble: true,
     },
   })
-  const [dbCatalogConfig, setDbCatalogConfig] = useState(`{
-    "test_table": {
+  const [dbCatalogConfig, setDbCatalogConfig] = useState(`[{
       "name": "test_table",
       "config": {
         "hasVersions": true,
         "maxVersions": 2
       }
-    }
-}`)
+  }]`)
 
   // New state for catalog panel
   const [tableName, setTableName] = useState('test_table')
-  const [tableType, setTableType] = useState<'arrow' | 'json'>('json')
+  const [tableType, setTableType] = useState<'arrow' | 'json'>('arrow')
   const [tablePayload, setTablePayload] = useState('')
 
   const addOutput = (type: DisplayOutputResult['type'], data?: any) => {
@@ -138,7 +136,7 @@ export const MachineExample = () => {
           hover: 'hover:bg-red-700',
           disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
         }
-      case 'catalog.get_table_metadata':
+      case 'catalog.get_configuration':
         return {
           base: 'bg-cyan-500',
           hover: 'hover:bg-cyan-600',
@@ -262,8 +260,9 @@ export const MachineExample = () => {
 
   // New catalog handlers
   const handleListTables = () => {
-    send({ type: 'CATALOG.LIST_TABLES' })
-    addOutput('catalog.list_tables', 'List tables command sent')
+    send({ type: 'CATALOG.LIST_TABLES', callback: (tables: LoadedTableEntry[]) => {
+      addOutput('catalog.list_tables', safeStringify(tables, 2))
+    } })
   }
 
   const handleLoadTableFromData = () => {
@@ -300,9 +299,10 @@ export const MachineExample = () => {
     addOutput('catalog.drop_table', `Drop table command sent for: ${tableName}`)
   }
 
-  const handleGetTableMetadata = () => {
-    send({ type: 'CATALOG.GET_TABLE_METADATA', tableName })
-    addOutput('catalog.get_table_metadata', `Get table metadata command sent for: ${tableName}`)
+  const handleShowConfiguration = () => {
+    send({ type: 'CATALOG.GET_CONFIGURATION', callback: (config: TableDefinition[]) => {
+      addOutput('catalog.get_configuration', safeStringify(config, 2))
+    } })
   }
 
   return (
@@ -541,9 +541,9 @@ export const MachineExample = () => {
             </div>
             <div className='flex flex-wrap gap-2 mt-4'>
               <button
-                disabled={!state.can({ type: 'CATALOG.LIST_TABLES' })}
+                disabled={!state.can({ type: 'CATALOG.LIST_TABLES', callback: () => {} })}
                 onClick={handleListTables}
-                className={getButtonClasses('catalog.list_tables', !state.can({ type: 'CATALOG.LIST_TABLES' }))}
+                className={getButtonClasses('catalog.list_tables', !state.can({ type: 'CATALOG.LIST_TABLES', callback: () => {} }))}
               >
                 List Tables
               </button>
@@ -562,9 +562,9 @@ export const MachineExample = () => {
                 Drop Table
               </button>
               <button
-                disabled={!state.can({ type: 'CATALOG.GET_TABLE_METADATA', tableName: '' })}
-                onClick={handleGetTableMetadata}
-                className={getButtonClasses('catalog.get_table_metadata', !state.can({ type: 'CATALOG.GET_TABLE_METADATA', tableName: '' }))}
+                disabled={!state.can({ type: 'CATALOG.GET_CONFIGURATION', callback: () => {} })}
+                onClick={handleShowConfiguration}
+                className={getButtonClasses('catalog.get_configuration', !state.can({ type: 'CATALOG.GET_CONFIGURATION', callback: () => {} }))}
               >
                 Get Metadata
               </button>

@@ -1,9 +1,15 @@
 import { assign, setup } from 'xstate'
 import { TableDefinition } from '../lib/types'
 
+export interface LoadedTableEntry {
+  id: number
+  tableName: string
+  loadedEpoch: number
+}
+
 export interface Context {
-  config: Record<string, TableDefinition>
-  loadedVersions: Record<string, number[]>
+  config: TableDefinition[]
+  loadedVersions: Array<LoadedTableEntry>
   subscriptions: Record<string, Set<() => void>>
 }
 
@@ -15,10 +21,10 @@ type ExternalEvents =
   | { type: 'CATALOG.DISCONNECT' }
 
   // these events are used to load data and delete tables
-  | { type: 'CATALOG.LIST_TABLES' }
+  | { type: 'CATALOG.LIST_TABLES', callback: (tables: LoadedTableEntry[]) => void }
   | { type: 'CATALOG.LOAD_TABLE_FROM_DATA'; table: TableDefinition; payload: any }
   | { type: 'CATALOG.DROP_TABLE'; tableName: string }
-  | { type: 'CATALOG.GET_TABLE_METADATA'; tableName: string }
+  | { type: 'CATALOG.GET_CONFIGURATION'; callback: (config: TableDefinition[]) => void }
 
   // these events are used to subscribe to table changes
   | { type: 'CATALOG.SUBSCRIBE'; tableName: string; callback: () => void }
@@ -36,8 +42,8 @@ export const dbCatalogLogic = setup({
   initial: 'idle',
 
   context: {
-    config: {},
-    loadedVersions: {},
+    config: [],
+    loadedVersions: [],
     subscriptions: {},
   },
 
@@ -60,8 +66,8 @@ export const dbCatalogLogic = setup({
         'CATALOG.RESET': {
           target: 'idle',
           actions: assign(() => ({
-            config: {},
-            loadedVersions: {},
+            config: [],
+            loadedVersions: [],
             subscriptions: {},
           })),
         },
@@ -74,6 +80,11 @@ export const dbCatalogLogic = setup({
       on: {
         'CATALOG.DISCONNECT': {
           target: 'configured',
+        },
+        'CATALOG.LIST_TABLES': {
+          actions: (({ context, event }) => {
+            event.callback(context.loadedVersions)
+          }),
         },
         'CATALOG.LOAD_TABLE_FROM_DATA': {
           //   actors: {
@@ -115,14 +126,10 @@ export const dbCatalogLogic = setup({
           //   }),
         },
 
-        'CATALOG.GET_TABLE_METADATA': {
-          //   actions: ({ context, event }) => {
-          //     const versions = context.loadedVersions[event.tableName] ?? []
-          //     event.respond({
-          //       versions,
-          //       latestVersion: versions[0],
-          //     })
-          //   },
+        'CATALOG.GET_CONFIGURATION': {
+          actions: (({ context, event }) => {
+            event.callback(context.config)
+          }),
         },
 
         'CATALOG.SUBSCRIBE': {
