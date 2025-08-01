@@ -1,34 +1,15 @@
 import React, { useState } from 'react'
 import { duckdbMachine, InitDuckDbParams, QueryDbParams, safeStringify } from 'xstate-duckdb'
-import { useActor } from '@xstate/react'
+import { useActor, useSelector } from '@xstate/react'
 import { DuckDBConfig, InstantiationProgress, LogLevel } from '@duckdb/duckdb-wasm'
-
-// Simple cn helper function
-const cn = (...classes: (string | undefined | null | false)[]) => {
-  return classes.filter(Boolean).join(' ')
-}
-
-interface DisplayOutputResult {
-  type:
-    | 'query.execute'
-    | 'transaction.begin'
-    | 'transaction.execute'
-    | 'transaction.commit'
-    | 'transaction.rollback'
-    | 'subscribe'
-    | 'unsubscribe'
-    | 'disconnect'
-    | 'connect'
-    | 'configure'
-    | 'reset'
-    | 'error'
-    | 'clear'
-  data?: any
-  timestamp: Date
-}
+import { DisplayOutputResult } from '../types'
+import { cn } from '../utils'
 
 export const MachineExample = () => {
-  const [state, send] = useActor(duckdbMachine)
+  const [state, send, actor] = useActor(duckdbMachine)
+  const dbCatalogRef = useSelector(actor, state => state.children.dbCatalog)
+  const dbCatalogState = useSelector(dbCatalogRef, state => state)
+
   const [query, setQuery] = useState('SELECT * FROM duckdb_databases();')
   const [outputs, setOutputs] = useState<DisplayOutputResult[]>([])
   const [config, setConfig] = useState<DuckDBConfig>({
@@ -37,7 +18,7 @@ export const MachineExample = () => {
       castDecimalToDouble: true,
     },
   })
-  const [tablesConfig, setTablesConfig] = useState(`{
+  const [dbCatalogConfig, setDbCatalogConfig] = useState(`{
     "test_table": {
       "name": "test_table",
       "config": {
@@ -116,22 +97,40 @@ export const MachineExample = () => {
           hover: 'hover:bg-rose-600',
           disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
         }
-      case 'subscribe':
+      case 'catalog.subscribe':
         return {
           base: 'bg-indigo-500',
           hover: 'hover:bg-indigo-600',
           disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
         }
-      case 'unsubscribe':
+      case 'catalog.unsubscribe':
         return {
           base: 'bg-gray-500',
           hover: 'hover:bg-gray-600',
           disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
         }
-      case 'error':
+      case 'catalog.listTables':
+        return {
+          base: 'bg-gray-500',
+          hover: 'hover:bg-gray-600',
+          disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
+        }
+      case 'catalog.loadTableFromData':
+        return {
+          base: 'bg-gray-500',
+          hover: 'hover:bg-gray-600',
+          disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
+        }
+      case 'catalog.deleteTable':
         return {
           base: 'bg-red-600',
           hover: 'hover:bg-red-700',
+          disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
+        }
+      case 'catalog.getTableMetadata':
+        return {
+          base: 'bg-gray-500',
+          hover: 'hover:bg-gray-600',
           disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
         }
       case 'clear':
@@ -165,11 +164,11 @@ export const MachineExample = () => {
         },
         config,
       }
-      const tablesObj = JSON.parse(tablesConfig)
+      const dbCatalogObj = JSON.parse(dbCatalogConfig)
       send({
         type: 'CONFIGURE',
         dbInitParams: configObj,
-        tables: tablesObj,
+        catalogConfig: dbCatalogObj,
       })
       addOutput('configure', 'Configuration applied successfully')
     } catch (error) {
@@ -210,13 +209,13 @@ export const MachineExample = () => {
   }
 
   const handleSubscribe = () => {
-    send({ type: 'SUBSCRIBE', tableName: 'example_table', callback: () => {} })
-    addOutput('subscribe', 'Subscribe command sent')
+    send({ type: 'CATALOG.SUBSCRIBE', tableName: 'example_table', callback: () => {} })
+    addOutput('catalog.subscribe', 'Subscribe command sent')
   }
 
   const handleUnsubscribe = () => {
-    send({ type: 'UNSUBSCRIBE', tableName: 'example_table', callback: () => {} })
-    addOutput('unsubscribe', 'Unsubscribe command sent')
+    send({ type: 'CATALOG.UNSUBSCRIBE', tableName: 'example_table', callback: () => {} })
+    addOutput('catalog.unsubscribe', 'Unsubscribe command sent')
   }
 
   const handleTransactionBegin = () => {
@@ -303,8 +302,8 @@ export const MachineExample = () => {
             <div>
               <h3 className='text-sm font-medium text-gray-700 mb-2'>Tables Configuration</h3>
               <textarea
-                value={tablesConfig}
-                onChange={e => setTablesConfig(e.target.value)}
+                value={dbCatalogConfig}
+                onChange={e => setDbCatalogConfig(e.target.value)}
                 className='w-full h-64 p-2 border border-gray-300 rounded-md font-mono text-xs'
                 placeholder='Enter tables configuration JSON...'
               />
@@ -329,7 +328,7 @@ export const MachineExample = () => {
                 !state.can({
                   type: 'CONFIGURE',
                   dbInitParams: { config: {}, logLevel: LogLevel.DEBUG, progress: () => {} },
-                  tables: [],
+                  catalogConfig: {},
                 })
               }
               onClick={handleConfigure}
@@ -338,7 +337,7 @@ export const MachineExample = () => {
                 !state.can({
                   type: 'CONFIGURE',
                   dbInitParams: { config: {}, logLevel: LogLevel.DEBUG, progress: () => {} },
-                  tables: [],
+                  catalogConfig: {},
                 })
               )}
             >
@@ -443,21 +442,21 @@ export const MachineExample = () => {
               Rollback
             </button>
             <button
-              disabled={!state.can({ type: 'SUBSCRIBE', tableName: '', callback: () => {} })}
+              disabled={!state.can({ type: 'CATALOG.SUBSCRIBE', tableName: '', callback: () => {} })}
               onClick={handleSubscribe}
               className={getButtonClasses(
-                'subscribe',
-                !state.can({ type: 'SUBSCRIBE', tableName: '', callback: () => {} })
+                'catalog.subscribe',
+                !state.can({ type: 'CATALOG.SUBSCRIBE', tableName: '', callback: () => {} })
               )}
             >
               Subscribe
             </button>
             <button
-              disabled={!state.can({ type: 'UNSUBSCRIBE', tableName: '', callback: () => {} })}
+              disabled={!state.can({ type: 'CATALOG.UNSUBSCRIBE', tableName: '', callback: () => {} })}
               onClick={handleUnsubscribe}
               className={getButtonClasses(
-                'unsubscribe',
-                !state.can({ type: 'UNSUBSCRIBE', tableName: '', callback: () => {} })
+                'catalog.unsubscribe',
+                !state.can({ type: 'CATALOG.UNSUBSCRIBE', tableName: '', callback: () => {} })
               )}
             >
               Unsubscribe
@@ -467,20 +466,29 @@ export const MachineExample = () => {
       </div>
 
       {/* Right Sidepanel - Machine State */}
-      <div className='w-80 bg-white shadow-lg border-l border-gray-200 p-4'>
-        <h2 className='text-lg font-semibold mb-4'>Machine State</h2>
-        <div className='space-y-4'>
-          <div>
+      <div className='w-80 min-w-80 max-w-96 bg-white shadow-lg border-l border-gray-200 p-4 flex flex-col h-full'>
+        <h2 className='text-lg font-semibold mb-4 flex-shrink-0'>Machine State</h2>
+        <div className='space-y-4 flex-1 flex flex-col min-h-0'>
+          <div className='flex-shrink-0'>
             <h3 className='font-medium text-gray-700 mb-2'>Current State</h3>
             <div className='bg-blue-50 border border-blue-200 rounded-md p-3'>
-              <code className='text-blue-800'>{JSON.stringify(state.value, null, 2)}</code>
+              <code className='text-sm text-blue-800'>
+                {safeStringify(state.value, 2)} / {safeStringify(dbCatalogState?.value, 2)}
+              </code>
             </div>
           </div>
 
-          <div>
-            <h3 className='font-medium text-gray-700 mb-2'>Context</h3>
-            <div className='bg-gray-50 border border-gray-200 rounded-md p-3 h-full overflow-y-auto'>
-              <pre className='text-xs text-gray-700'>{JSON.stringify(state.context, null, 2)}</pre>
+          <div className='flex-1 flex flex-col min-h-0'>
+            <h3 className='font-medium text-gray-700 mb-2 flex-shrink-0'>Context</h3>
+            <div className='bg-gray-50 border border-gray-200 rounded-md p-3 flex-1 overflow-y-auto min-h-0'>
+              <pre className='text-xs text-gray-700'>{safeStringify(state.context, 2)}</pre>
+            </div>
+          </div>
+
+          <div className='flex-1 flex flex-col min-h-0'>
+            <h4 className='text-md font-semibold text-gray-700 mb-2 flex-shrink-0'>Catalog State</h4>
+            <div className='bg-gray-50 p-3 rounded-lg flex-1 overflow-y-auto min-h-0'>
+              <pre className='text-xs text-gray-700 whitespace-pre-wrap'>{safeStringify(dbCatalogState, 2)}</pre>
             </div>
           </div>
         </div>

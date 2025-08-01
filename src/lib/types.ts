@@ -17,6 +17,7 @@ export interface TableConfig {
 export interface TableDefinition {
   name: string
   config: TableConfig
+  // loader: (payload: any) => Promise<Table<any>>
 }
 
 export const DUCKDB_TABLE: Record<string, TableDefinition> = {
