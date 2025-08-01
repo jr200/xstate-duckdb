@@ -1,19 +1,6 @@
 import { fromPromise } from 'xstate'
-import {
-  AsyncDuckDB,
-  ConsoleLogger,
-  DuckDBConfig,
-  getJsDelivrBundles,
-  InstantiationProgressHandler,
-  LogLevel,
-  selectBundle,
-} from '@duckdb/duckdb-wasm'
-
-export interface InitDuckDbParams {
-  config: DuckDBConfig | null
-  logLevel: LogLevel
-  progress: InstantiationProgressHandler
-}
+import { AsyncDuckDB, ConsoleLogger, getJsDelivrBundles, selectBundle } from '@duckdb/duckdb-wasm'
+import { InitDuckDbParams } from '../lib/types'
 
 export const initDuckDb = fromPromise(async ({ input }: { input: InitDuckDbParams }) => {
   const bundles = getJsDelivrBundles()
@@ -26,13 +13,13 @@ export const initDuckDb = fromPromise(async ({ input }: { input: InitDuckDbParam
   )
 
   const worker = new Worker(workerUrl)
-  const db = new AsyncDuckDB(new ConsoleLogger(input.logLevel), worker)
-  await db.instantiate(bundle.mainModule, bundle.pthreadWorker, input.progress)
+  const db = new AsyncDuckDB(new ConsoleLogger(input.dbLogLevel), worker)
+  await db.instantiate(bundle.mainModule, bundle.pthreadWorker, input.dbProgressHandler ?? undefined)
   URL.revokeObjectURL(workerUrl)
 
-  if (input.config) {
-    console.debug('initDuckDb with config', input.config)
-    await db.open(input.config)
+  if (input.dbInitParams) {
+    console.debug('initDuckDb with config', input.dbInitParams)
+    await db.open(input.dbInitParams)
   }
 
   const version = await db.getVersion()

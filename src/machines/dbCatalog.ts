@@ -4,9 +4,9 @@ import { loadTableIntoDuckDb, pruneTableVersions } from '../actors/dbCatalog'
 import { AsyncDuckDB } from '@duckdb/duckdb-wasm'
 
 export interface Context {
-  definitions: TableDefinition[]
+  tableDefinitions: TableDefinition[]
   loadedVersions: Array<LoadedTableEntry>
-  subscriptions: Record<string, Set<(tableInstanceName: string, id: number) => void>>
+  subscriptions: Record<string, Set<(tableInstanceName: string, tableVersionId: number) => void>>
   nextTableId: number
   duckDbHandle: AsyncDuckDB | null
   error?: string
@@ -15,7 +15,7 @@ export interface Context {
 type ExternalEvents =
   // these events are used to reset the catalog
   | { type: 'CATALOG.RESET' }
-  | { type: 'CATALOG.CONFIGURE'; definitions: TableDefinition[] }
+  | { type: 'CATALOG.CONFIGURE'; tableDefinitions: TableDefinition[] }
   | { type: 'CATALOG.CONNECT' }
   | { type: 'CATALOG.DISCONNECT' }
 
@@ -33,8 +33,16 @@ type ExternalEvents =
   | { type: 'CATALOG.LIST_DEFINITIONS'; callback: (config: TableDefinition[]) => void }
 
   // these events are used to subscribe to table changes
-  | { type: 'CATALOG.SUBSCRIBE'; tableSpecName: string; callback: (tableInstanceName: string) => void }
-  | { type: 'CATALOG.UNSUBSCRIBE'; tableSpecName: string; callback: (tableInstanceName: string) => void }
+  | {
+      type: 'CATALOG.SUBSCRIBE'
+      tableSpecName: string
+      callback: (tableInstanceName: string, tableVersionId: number) => void
+    }
+  | {
+      type: 'CATALOG.UNSUBSCRIBE'
+      tableSpecName: string
+      callback: (tableInstanceName: string, tableVersionId: number) => void
+    }
   | { type: 'CATALOG.FORCE_NOTIFY'; tableSpecName: string }
 
 export type Events = ExternalEvents
@@ -52,7 +60,7 @@ export const dbCatalogLogic = setup({
   initial: 'idle',
 
   context: {
-    definitions: [],
+    tableDefinitions: [],
     loadedVersions: [],
     subscriptions: {},
     nextTableId: 1,
@@ -66,7 +74,7 @@ export const dbCatalogLogic = setup({
           target: 'configured',
           actions: [
             assign({
-              definitions: ({ event }: any) => event.catalogConfig,
+              tableDefinitions: ({ event }: any) => event.tableDefinitions,
             }),
           ],
         },
@@ -122,7 +130,7 @@ export const dbCatalogLogic = setup({
 
         'CATALOG.LIST_DEFINITIONS': {
           actions: ({ context, event }) => {
-            event.callback(context.definitions)
+            event.callback(context.tableDefinitions)
           },
         },
 
@@ -158,10 +166,10 @@ export const dbCatalogLogic = setup({
               // Find the most recent version of this table
               const latestTable = context.loadedVersions
                 .filter(entry => entry.tableSpecName === event.tableSpecName)
-                .sort((a, b) => b.id - a.id)[0]
-              
+                .sort((a, b) => b.tableVersionId - a.tableVersionId)[0]
+
               if (latestTable) {
-                subs.forEach(callback => callback(latestTable.tableInstanceName, latestTable.id))
+                subs.forEach(callback => callback(latestTable.tableInstanceName, latestTable.tableVersionId))
               }
             }
           },
@@ -175,7 +183,7 @@ export const dbCatalogLogic = setup({
           return {
             ...event,
             nextTableId: context.nextTableId,
-            definitions: context.definitions,
+            tableDefinitions: context.tableDefinitions,
             duckDbHandle: context.duckDbHandle,
           }
         },
@@ -183,14 +191,14 @@ export const dbCatalogLogic = setup({
           target: 'pruning_versions',
           actions: assign(({ event, context }) => {
             const newLoadedVersions = [event.output as LoadedTableEntry, ...context.loadedVersions]
-            
+
             // Notify subscribers about the new table
             const newTable = event.output as LoadedTableEntry
             const subs = context.subscriptions[newTable.tableSpecName]
             if (subs) {
-              subs.forEach(callback => callback(newTable.tableInstanceName, newTable.id))
+              subs.forEach(callback => callback(newTable.tableInstanceName, newTable.tableVersionId))
             }
-            
+
             return {
               nextTableId: context.nextTableId + 1,
               loadedVersions: newLoadedVersions,
@@ -201,6 +209,7 @@ export const dbCatalogLogic = setup({
           target: 'error',
           actions: assign({
             nextTableId: ({ context }: any) => context.nextTableId + 1,
+            error: ({ event }: any) => event.error.message,
           }),
         },
       },
@@ -212,7 +221,7 @@ export const dbCatalogLogic = setup({
           return {
             ...event,
             currentLoadedVersions: context.loadedVersions,
-            definitions: context.definitions,
+            tableDefinitions: context.tableDefinitions,
             duckDbHandle: context.duckDbHandle,
           }
         },

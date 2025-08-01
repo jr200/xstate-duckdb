@@ -1,18 +1,20 @@
 import React, { useState } from 'react'
 import {
   duckdbMachine,
-  InitDuckDbParams,
   LoadedTableEntry,
+  MachineConfig,
   QueryDbParams,
   safeStringify,
   TableDefinition,
 } from 'xstate-duckdb'
 import { useActor, useSelector } from '@xstate/react'
-import { DuckDBConfig, InstantiationProgress, LogLevel } from '@duckdb/duckdb-wasm'
+import { InstantiationProgress, LogLevel } from '@duckdb/duckdb-wasm'
 import { DisplayOutputResult } from './types'
 import { ProgressBar } from './ProgressBar'
 import { getButtonClasses, getTypeStyles } from './styles'
 import payloadContent from '/payload.b64ipc_zlib.txt?raw'
+import configContent from '/config_yaml.txt?raw'
+import yaml from 'js-yaml'
 
 export const MachineExample = () => {
   const [state, send, actor] = useActor(duckdbMachine)
@@ -21,18 +23,7 @@ export const MachineExample = () => {
 
   const [query, setQuery] = useState('SELECT * FROM duckdb_databases();')
   const [outputs, setOutputs] = useState<DisplayOutputResult[]>([])
-  const [config, setConfig] = useState<DuckDBConfig>({
-    query: {
-      castBigIntToDouble: true,
-      castDecimalToDouble: true,
-    },
-  })
-  const [dbCatalogConfig, setDbCatalogConfig] = useState(`[{
-      "name": "test_table",
-      "schema": "main",
-      "isVersioned": true,
-      "maxVersions": 2
-  }]`)
+  const [config, setConfig] = useState(configContent)
 
   // New state for catalog panel
   const [tableName, setTableName] = useState('test_table')
@@ -57,18 +48,10 @@ export const MachineExample = () => {
 
   const handleConfigure = () => {
     try {
-      const configObj: InitDuckDbParams = {
-        logLevel: LogLevel.DEBUG,
-        progress: (progress: InstantiationProgress) => {
-          setInitProgress(progress)
-        },
-        config,
-      }
-      const dbCatalogObj = JSON.parse(dbCatalogConfig)
+      const yamlConfig: MachineConfig = yaml.load(config)
       send({
         type: 'CONFIGURE',
-        dbInitParams: configObj,
-        catalogConfig: dbCatalogObj,
+        config: yamlConfig as MachineConfig,
       })
       addOutput('configure', 'Configuration applied successfully')
     } catch (error) {
@@ -78,7 +61,11 @@ export const MachineExample = () => {
   }
 
   const handleConnect = () => {
-    send({ type: 'CONNECT' })
+    const dbProgressHandler = (progress: InstantiationProgress) => {
+      setInitProgress(progress)
+    }
+
+    send({ type: 'CONNECT', dbProgressHandler: dbProgressHandler })
     addOutput('connect', 'Connect command sent')
   }
 
@@ -109,13 +96,20 @@ export const MachineExample = () => {
   }
 
   const handleSubscribe = () => {
-    send({ type: 'CATALOG.SUBSCRIBE', tableSpecName: 'test_table', callback: () => {} })
-    addOutput('catalog.subscribe', 'Subscribe command sent')
+    addOutput('catalog.subscribe', `Subscribed to ${tableName}`)
+    send({
+      type: 'CATALOG.SUBSCRIBE',
+      tableSpecName: tableName,
+      callback: (tableInstanceName: string, tableVersionId: number) => {
+        const received = { tableInstanceName, tableVersionId }
+        addOutput('catalog.subscribe', safeStringify(received, 2))
+      },
+    })
   }
 
   const handleUnsubscribe = () => {
-    send({ type: 'CATALOG.UNSUBSCRIBE', tableSpecName: 'test_table', callback: () => {} })
-    addOutput('catalog.unsubscribe', 'Unsubscribe command sent')
+    send({ type: 'CATALOG.UNSUBSCRIBE', tableSpecName: tableName, callback: () => {} })
+    addOutput('catalog.unsubscribe', `Unsubscribed from ${tableName}`)
   }
 
   const handleTransactionBegin = () => {
@@ -238,23 +232,14 @@ export const MachineExample = () => {
         {/* Configuration Panel */}
         <div className='bg-white rounded-lg shadow-md p-4 mb-4'>
           <h2 className='text-lg font-semibold mb-2'>Configuration</h2>
-          <div className='grid grid-cols-2 gap-4'>
+          <div className='grid grid-cols-1 gap-4'>
             <div>
               <h3 className='text-sm font-medium text-gray-700 mb-2'>DuckDB Configuration</h3>
               <textarea
-                value={safeStringify(config, 2)}
-                onChange={e => setConfig(JSON.parse(e.target.value))}
+                value={config}
+                onChange={e => setConfig(e.target.value)}
                 className='w-full h-64 p-2 border border-gray-300 rounded-md font-mono text-xs'
-                placeholder='Enter DuckDB configuration JSON...'
-              />
-            </div>
-            <div>
-              <h3 className='text-sm font-medium text-gray-700 mb-2'>Tables Configuration</h3>
-              <textarea
-                value={dbCatalogConfig}
-                onChange={e => setDbCatalogConfig(e.target.value)}
-                className='w-full h-64 p-2 border border-gray-300 rounded-md font-mono text-xs'
-                placeholder='Enter tables configuration JSON...'
+                placeholder='Enter configuration YAML...'
               />
             </div>
           </div>
@@ -278,8 +263,7 @@ export const MachineExample = () => {
                 disabled={
                   !state.can({
                     type: 'CONFIGURE',
-                    dbInitParams: { config: {}, logLevel: LogLevel.DEBUG, progress: () => {} },
-                    catalogConfig: {},
+                    config: { dbLogLevel: LogLevel.DEBUG, dbInitParams: {}, tableDefinitions: [] },
                   })
                 }
                 onClick={handleConfigure}
@@ -287,17 +271,16 @@ export const MachineExample = () => {
                   'configure',
                   !state.can({
                     type: 'CONFIGURE',
-                    dbInitParams: { config: {}, logLevel: LogLevel.DEBUG, progress: () => {} },
-                    catalogConfig: {},
+                    config: { dbLogLevel: LogLevel.DEBUG, dbInitParams: {}, tableDefinitions: [] },
                   })
                 )}
               >
                 Configure
               </button>
               <button
-                disabled={!state.can({ type: 'CONNECT' })}
+                disabled={!state.can({ type: 'CONNECT', dbProgressHandler: null })}
                 onClick={handleConnect}
-                className={getButtonClasses('connect', !state.can({ type: 'CONNECT' }))}
+                className={getButtonClasses('connect', !state.can({ type: 'CONNECT', dbProgressHandler: null }))}
               >
                 Connect
               </button>

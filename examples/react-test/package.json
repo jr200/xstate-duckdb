@@ -12,6 +12,7 @@
   "dependencies": {
     "@statelyai/inspect": "^0.4.0",
     "@xstate/react": "^6.0.0",
+    "js-yaml": "^4.1.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "xstate": "^5.20.1",
