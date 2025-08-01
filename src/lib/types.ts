@@ -49,3 +49,10 @@ export type MachineConfig = DuckDbMachineConfig & CatalogMachineConfig
 export type InitDuckDbParams = DuckDbMachineConfig & {
   dbProgressHandler: InstantiationProgressHandler | null
 }
+
+export interface CatalogSubscription {
+  tableSpecName: string
+  subscriptionUid?: string
+  onSubscribe: (id: string, tableSpecName: string) => void
+  onChange: (tableInstanceName: string, tableVersionId: number) => void
+}

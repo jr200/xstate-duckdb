@@ -1,12 +1,12 @@
 import { assign, setup } from 'xstate'
-import { TableDefinition, LoadedTableEntry } from '../lib/types'
+import { TableDefinition, LoadedTableEntry, CatalogSubscription } from '../lib/types'
 import { loadTableIntoDuckDb, pruneTableVersions } from '../actors/dbCatalog'
 import { AsyncDuckDB } from '@duckdb/duckdb-wasm'
 
 export interface Context {
   tableDefinitions: TableDefinition[]
   loadedVersions: Array<LoadedTableEntry>
-  subscriptions: Record<string, Set<(tableInstanceName: string, tableVersionId: number) => void>>
+  subscriptions: Map<string, CatalogSubscription>
   nextTableId: number
   duckDbHandle: AsyncDuckDB | null
   error?: string
@@ -35,15 +35,13 @@ type ExternalEvents =
   // these events are used to subscribe to table changes
   | {
       type: 'CATALOG.SUBSCRIBE'
-      tableSpecName: string
-      callback: (tableInstanceName: string, tableVersionId: number) => void
+      subscription: CatalogSubscription
     }
   | {
       type: 'CATALOG.UNSUBSCRIBE'
-      tableSpecName: string
-      callback: (tableInstanceName: string, tableVersionId: number) => void
+      id: string
     }
-  | { type: 'CATALOG.FORCE_NOTIFY'; tableSpecName: string }
+  | { type: 'CATALOG.FORCE_NOTIFY'; id: string }
 
 export type Events = ExternalEvents
 
@@ -62,7 +60,7 @@ export const dbCatalogLogic = setup({
   context: {
     tableDefinitions: [],
     loadedVersions: [],
-    subscriptions: {},
+    subscriptions: new Map<string, CatalogSubscription>(),
     nextTableId: 1,
     duckDbHandle: null,
   },
@@ -88,7 +86,7 @@ export const dbCatalogLogic = setup({
           actions: assign(() => ({
             config: [],
             loadedVersions: [],
-            subscriptions: {},
+            subscriptions: new Map<string, CatalogSubscription>(),
             // shoudl we reset this?? nextTableId: 1,
           })),
         },
@@ -136,40 +134,39 @@ export const dbCatalogLogic = setup({
 
         'CATALOG.SUBSCRIBE': {
           actions: assign(({ context, event }) => {
-            const subs = context.subscriptions[event.tableSpecName] ?? new Set()
-            subs.add(event.callback)
+            const { subscription } = event
+            const subscriptionKey = subscription.subscriptionUid ?? subscription.tableSpecName
+            const newSubscriptions = new Map(context.subscriptions)
+            newSubscriptions.set(subscriptionKey, {
+              ...subscription,
+              subscriptionUid: subscriptionKey,
+            })
+            console.log('*****newSubscriptions', context.subscriptions, newSubscriptions)
             return {
-              subscriptions: { ...context.subscriptions, [event.tableSpecName]: subs },
+              subscriptions: newSubscriptions,
             }
           }),
         },
 
         'CATALOG.UNSUBSCRIBE': {
           actions: assign(({ context, event }) => {
-            const subs = context.subscriptions[event.tableSpecName]
-            if (subs) {
-              subs.delete(event.callback)
-              if (subs.size === 0) {
-                const newSubscriptions = { ...context.subscriptions }
-                delete newSubscriptions[event.tableSpecName]
-                return { subscriptions: newSubscriptions }
-              }
-            }
-            return context
+            const newSubscriptions = new Map(context.subscriptions)
+            newSubscriptions.delete(event.id)
+            return { subscriptions: newSubscriptions }
           }),
         },
 
         'CATALOG.FORCE_NOTIFY': {
           actions: ({ context, event }) => {
-            const subs = context.subscriptions[event.tableSpecName]
-            if (subs) {
+            const foundSub = context.subscriptions.get(event.id)
+            if (foundSub) {
               // Find the most recent version of this table
               const latestTable = context.loadedVersions
-                .filter(entry => entry.tableSpecName === event.tableSpecName)
+                .filter(entry => entry.tableSpecName === foundSub.tableSpecName)
                 .sort((a, b) => b.tableVersionId - a.tableVersionId)[0]
 
               if (latestTable) {
-                subs.forEach(callback => callback(latestTable.tableInstanceName, latestTable.tableVersionId))
+                foundSub.onChange(latestTable.tableInstanceName, latestTable.tableVersionId)
               }
             }
           },
@@ -190,13 +187,14 @@ export const dbCatalogLogic = setup({
         onDone: {
           target: 'pruning_versions',
           actions: assign(({ event, context }) => {
-            const newLoadedVersions = [event.output as LoadedTableEntry, ...context.loadedVersions]
+            const loadedTable = event.output as LoadedTableEntry
+            const newLoadedVersions = [loadedTable, ...context.loadedVersions]
 
             // Notify subscribers about the new table
-            const newTable = event.output as LoadedTableEntry
-            const subs = context.subscriptions[newTable.tableSpecName]
-            if (subs) {
-              subs.forEach(callback => callback(newTable.tableInstanceName, newTable.tableVersionId))
+            for (const [_, subscription] of context.subscriptions.entries()) {
+              if (subscription.tableSpecName === loadedTable.tableSpecName) {
+                subscription.onChange(loadedTable.tableInstanceName, loadedTable.tableVersionId)
+              }
             }
 
             return {

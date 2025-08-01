@@ -1,12 +1,5 @@
 import React, { useState } from 'react'
-import {
-  duckdbMachine,
-  LoadedTableEntry,
-  MachineConfig,
-  QueryDbParams,
-  safeStringify,
-  TableDefinition,
-} from 'xstate-duckdb'
+import { duckdbMachine, LoadedTableEntry, MachineConfig, QueryDbParams, TableDefinition } from 'xstate-duckdb'
 import { useActor, useSelector } from '@xstate/react'
 import { InstantiationProgress, LogLevel } from '@duckdb/duckdb-wasm'
 import { DisplayOutputResult } from './types'
@@ -15,11 +8,13 @@ import { getButtonClasses, getTypeStyles } from './styles'
 import payloadContent from '/payload.b64ipc_zlib.txt?raw'
 import configContent from '/config_yaml.txt?raw'
 import yaml from 'js-yaml'
+import { format as prettyFormat } from 'pretty-format'
 
 export const MachineExample = () => {
   const [state, send, actor] = useActor(duckdbMachine)
   const dbCatalogRef = useSelector(actor, state => state.children.dbCatalog)
   const dbCatalogState = useSelector(dbCatalogRef, state => state)
+  const activeSubscriptions: Map<string, object> = dbCatalogState?.context?.subscriptions ?? new Map()
 
   const [query, setQuery] = useState('SELECT * FROM duckdb_databases();')
   const [outputs, setOutputs] = useState<DisplayOutputResult[]>([])
@@ -99,16 +94,21 @@ export const MachineExample = () => {
     addOutput('catalog.subscribe', `Subscribed to ${tableName}`)
     send({
       type: 'CATALOG.SUBSCRIBE',
-      tableSpecName: tableName,
-      callback: (tableInstanceName: string, tableVersionId: number) => {
-        const received = { tableInstanceName, tableVersionId }
-        addOutput('catalog.subscribe', safeStringify(received, 2))
+      subscription: {
+        tableSpecName: tableName,
+        onSubscribe: (id: string, tableSpecName: string) => {
+          addOutput('catalog.subscribe', `Subscribed to ${tableSpecName}, id=${id}`)
+        },
+        onChange: (tableInstanceName: string, tableVersionId: number) => {
+          const received = { tableInstanceName, tableVersionId }
+          addOutput('catalog.subscribe', prettyFormat(received))
+        },
       },
     })
   }
 
   const handleUnsubscribe = () => {
-    send({ type: 'CATALOG.UNSUBSCRIBE', tableSpecName: tableName, callback: () => {} })
+    send({ type: 'CATALOG.UNSUBSCRIBE', id: tableName })
     addOutput('catalog.unsubscribe', `Unsubscribed from ${tableName}`)
   }
 
@@ -148,7 +148,7 @@ export const MachineExample = () => {
     send({
       type: 'CATALOG.LIST_TABLES',
       callback: (tables: LoadedTableEntry[]) => {
-        addOutput('catalog.list_tables', safeStringify(tables, 2))
+        addOutput('catalog.list_tables', prettyFormat(tables))
       },
     })
   }
@@ -187,7 +187,7 @@ export const MachineExample = () => {
     send({
       type: 'CATALOG.LIST_DEFINITIONS',
       callback: (config: TableDefinition[]) => {
-        addOutput('catalog.list_definitions', safeStringify(config, 2))
+        addOutput('catalog.list_definitions', prettyFormat(config))
       },
     })
   }
@@ -218,7 +218,7 @@ export const MachineExample = () => {
                     <span className='text-gray-500 text-xs'>{output.timestamp.toLocaleTimeString()}</span>
                   </div>
                   <div className='font-mono text-sm text-gray-800 break-words'>
-                    {typeof output.data === 'string' ? output.data : safeStringify(output.data, 2)}
+                    {typeof output.data === 'string' ? output.data : prettyFormat(output.data)}
                   </div>
                 </div>
               ))}
@@ -229,158 +229,190 @@ export const MachineExample = () => {
 
       {/* Middle Panel - Controls and Configuration */}
       <div className='flex-1 flex flex-col p-4'>
-        {/* Configuration Panel */}
-        <div className='bg-white rounded-lg shadow-md p-4 mb-4'>
-          <h2 className='text-lg font-semibold mb-2'>Configuration</h2>
-          <div className='grid grid-cols-1 gap-4'>
-            <div>
-              <h3 className='text-sm font-medium text-gray-700 mb-2'>DuckDB Configuration</h3>
+        {/* 2x2 Grid Layout */}
+        <div className='grid grid-cols-2 gap-4 h-full'>
+          {/* Left Column - Configuration and Query stacked */}
+          <div className='flex flex-col gap-4'>
+            {/* Configuration Panel */}
+            <div className='bg-white rounded-lg shadow-md p-4'>
+              <h2 className='text-lg font-semibold mb-2'>Configuration</h2>
+              <div className='grid grid-cols-1 gap-4'>
+                <div>
+                  <h3 className='text-sm font-medium text-gray-700 mb-2'>DuckDB Configuration</h3>
+                  <textarea
+                    value={config}
+                    onChange={e => setConfig(e.target.value)}
+                    className='w-full h-48 p-2 border border-gray-300 rounded-md font-mono text-xs'
+                    placeholder='Enter configuration YAML...'
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Query Panel */}
+            <div className='bg-white rounded-lg shadow-md p-4 flex flex-col flex-1'>
+              <h2 className='text-lg font-semibold mb-2'>Query</h2>
               <textarea
-                value={config}
-                onChange={e => setConfig(e.target.value)}
-                className='w-full h-64 p-2 border border-gray-300 rounded-md font-mono text-xs'
-                placeholder='Enter configuration YAML...'
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                className='w-full flex-1 p-2 border border-gray-300 rounded-md font-mono text-sm resize-none'
+                placeholder='Enter your SQL query...'
               />
-            </div>
-          </div>
-        </div>
 
-        {/* Catalog and Controls Panels - Side by Side */}
-        <div className='flex gap-4 flex-1'>
-          {/* Controls Panel */}
-          <div className='w-1/2 bg-white rounded-lg shadow-md p-4 flex flex-col'>
-            <h2 className='text-lg font-semibold mb-2'>Query</h2>
-            <textarea
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              className='w-full flex-1 p-2 border border-gray-300 rounded-md font-mono text-sm resize-none'
-              placeholder='Enter your SQL query...'
-            />
-
-            <div className='mb-3 mt-4' />
-            <div className='flex flex-wrap gap-2'>
-              <button
-                disabled={
-                  !state.can({
-                    type: 'CONFIGURE',
-                    config: { dbLogLevel: LogLevel.DEBUG, dbInitParams: {}, tableDefinitions: [] },
-                  })
-                }
-                onClick={handleConfigure}
-                className={getButtonClasses(
-                  'configure',
-                  !state.can({
-                    type: 'CONFIGURE',
-                    config: { dbLogLevel: LogLevel.DEBUG, dbInitParams: {}, tableDefinitions: [] },
-                  })
-                )}
-              >
-                Configure
-              </button>
-              <button
-                disabled={!state.can({ type: 'CONNECT', dbProgressHandler: null })}
-                onClick={handleConnect}
-                className={getButtonClasses('connect', !state.can({ type: 'CONNECT', dbProgressHandler: null }))}
-              >
-                Connect
-              </button>
-              <button
-                disabled={!state.can({ type: 'DISCONNECT' })}
-                onClick={handleDisconnect}
-                className={getButtonClasses('disconnect', !state.can({ type: 'DISCONNECT' }))}
-              >
-                Disconnect
-              </button>
-              <button
-                disabled={!state.can({ type: 'RESET' })}
-                onClick={handleReset}
-                className={getButtonClasses('reset', !state.can({ type: 'RESET' }))}
-              >
-                Reset
-              </button>
-              <button
-                disabled={
-                  !state.can({
-                    type: 'QUERY.EXECUTE',
-                    queryParams: {
-                      sql: query,
-                      callback: () => {},
-                      description: 'QUERY.EXECUTE',
-                      resultType: 'json',
-                    },
-                  })
-                }
-                onClick={() => handleQueryAutoCommit()}
-                className={getButtonClasses(
-                  'query.execute',
-                  !state.can({
-                    type: 'QUERY.EXECUTE',
-                    queryParams: {
-                      sql: query,
-                      callback: () => {},
-                      description: 'QUERY.EXECUTE',
-                      resultType: 'json',
-                    },
-                  })
-                )}
-              >
-                Query (auto-commit)
-              </button>
-              <button
-                disabled={!state.can({ type: 'TRANSACTION.BEGIN' })}
-                onClick={handleTransactionBegin}
-                className={getButtonClasses('transaction.begin', !state.can({ type: 'TRANSACTION.BEGIN' }))}
-              >
-                Begin Transaction
-              </button>
-              <button
-                disabled={
-                  !state.can({
-                    type: 'TRANSACTION.EXECUTE',
-                    queryParams: {
-                      sql: query,
-                      callback: () => {},
-                      description: 'TRANSACTION.EXECUTE',
-                      resultType: 'json',
-                    },
-                  })
-                }
-                onClick={handleTransactionExecute}
-                className={getButtonClasses(
-                  'transaction.execute',
-                  !state.can({
-                    type: 'TRANSACTION.EXECUTE',
-                    queryParams: {
-                      sql: query,
-                      callback: () => {},
-                      description: 'TRANSACTION.EXECUTE',
-                      resultType: 'json',
-                    },
-                  })
-                )}
-              >
-                Execute
-              </button>
-              <button
-                disabled={!state.can({ type: 'TRANSACTION.COMMIT' })}
-                onClick={handleTransactionCommit}
-                className={getButtonClasses('transaction.commit', !state.can({ type: 'TRANSACTION.COMMIT' }))}
-              >
-                Commit
-              </button>
-              <button
-                disabled={!state.can({ type: 'TRANSACTION.ROLLBACK' })}
-                onClick={handleTransactionRollback}
-                className={getButtonClasses('transaction.rollback', !state.can({ type: 'TRANSACTION.ROLLBACK' }))}
-              >
-                Rollback
-              </button>
+              <div className='mb-3 mt-4' />
+              <div className='flex flex-wrap gap-2'>
+                <button
+                  disabled={
+                    !state.can({
+                      type: 'CONFIGURE',
+                      config: { dbLogLevel: LogLevel.DEBUG, dbInitParams: {}, tableDefinitions: [] },
+                    })
+                  }
+                  onClick={handleConfigure}
+                  className={getButtonClasses(
+                    'configure',
+                    !state.can({
+                      type: 'CONFIGURE',
+                      config: { dbLogLevel: LogLevel.DEBUG, dbInitParams: {}, tableDefinitions: [] },
+                    })
+                  )}
+                >
+                  Configure
+                </button>
+                <button
+                  disabled={!state.can({ type: 'CONNECT', dbProgressHandler: null })}
+                  onClick={handleConnect}
+                  className={getButtonClasses('connect', !state.can({ type: 'CONNECT', dbProgressHandler: null }))}
+                >
+                  Connect
+                </button>
+                <button
+                  disabled={!state.can({ type: 'DISCONNECT' })}
+                  onClick={handleDisconnect}
+                  className={getButtonClasses('disconnect', !state.can({ type: 'DISCONNECT' }))}
+                >
+                  Disconnect
+                </button>
+                <button
+                  disabled={!state.can({ type: 'RESET' })}
+                  onClick={handleReset}
+                  className={getButtonClasses('reset', !state.can({ type: 'RESET' }))}
+                >
+                  Reset
+                </button>
+                <button
+                  disabled={
+                    !state.can({
+                      type: 'QUERY.EXECUTE',
+                      queryParams: {
+                        sql: query,
+                        callback: () => {},
+                        description: 'QUERY.EXECUTE',
+                        resultType: 'json',
+                      },
+                    })
+                  }
+                  onClick={() => handleQueryAutoCommit()}
+                  className={getButtonClasses(
+                    'query.execute',
+                    !state.can({
+                      type: 'QUERY.EXECUTE',
+                      queryParams: {
+                        sql: query,
+                        callback: () => {},
+                        description: 'QUERY.EXECUTE',
+                        resultType: 'json',
+                      },
+                    })
+                  )}
+                >
+                  Query (auto-commit)
+                </button>
+                <button
+                  disabled={!state.can({ type: 'TRANSACTION.BEGIN' })}
+                  onClick={handleTransactionBegin}
+                  className={getButtonClasses('transaction.begin', !state.can({ type: 'TRANSACTION.BEGIN' }))}
+                >
+                  Begin Transaction
+                </button>
+                <button
+                  disabled={
+                    !state.can({
+                      type: 'TRANSACTION.EXECUTE',
+                      queryParams: {
+                        sql: query,
+                        callback: () => {},
+                        description: 'TRANSACTION.EXECUTE',
+                        resultType: 'json',
+                      },
+                    })
+                  }
+                  onClick={handleTransactionExecute}
+                  className={getButtonClasses(
+                    'transaction.execute',
+                    !state.can({
+                      type: 'TRANSACTION.EXECUTE',
+                      queryParams: {
+                        sql: query,
+                        callback: () => {},
+                        description: 'TRANSACTION.EXECUTE',
+                        resultType: 'json',
+                      },
+                    })
+                  )}
+                >
+                  Execute
+                </button>
+                <button
+                  disabled={!state.can({ type: 'TRANSACTION.COMMIT' })}
+                  onClick={handleTransactionCommit}
+                  className={getButtonClasses('transaction.commit', !state.can({ type: 'TRANSACTION.COMMIT' }))}
+                >
+                  Commit
+                </button>
+                <button
+                  disabled={!state.can({ type: 'TRANSACTION.ROLLBACK' })}
+                  onClick={handleTransactionRollback}
+                  className={getButtonClasses('transaction.rollback', !state.can({ type: 'TRANSACTION.ROLLBACK' }))}
+                >
+                  Rollback
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Catalog Panel */}
-          <div className='w-1/2 bg-white rounded-lg shadow-md p-4 flex flex-col'>
-            <h2 className='text-lg font-semibold mb-2'>Catalog & Table Management</h2>
+          {/* Right Column - Catalog spanning both rows */}
+          <div className='bg-white rounded-lg shadow-md p-4 flex flex-col row-span-2'>
+            <h2 className='text-lg font-semibold mb-2'>Catalog</h2>
+
+            {/* Active Subscriptions Section */}
+            <div className='mb-4'>
+              <h3 className='text-md font-medium text-gray-700 mb-2'>Active Subscriptions</h3>
+              {activeSubscriptions && activeSubscriptions.size > 0 ? (
+                <div className='space-y-2'>
+                  {Array.from(activeSubscriptions.keys()).map(id => (
+                    <div key={id} className='flex items-center justify-between bg-gray-50 rounded-md p-2'>
+                      <span className='text-sm text-gray-700'>{id}</span>
+                      <button
+                        onClick={() => {
+                          send({
+                            type: 'CATALOG.UNSUBSCRIBE',
+                            id,
+                          })
+                          addOutput('catalog.unsubscribe', `Unsubscribed from ${id}`)
+                        }}
+                        className='text-red-500 hover:text-red-700 text-sm font-medium px-2 py-1 rounded hover:bg-red-50 transition-colors'
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className='text-sm text-gray-500 italic'>No active subscriptions</div>
+              )}
+            </div>
+
             <div className='grid grid-cols-2 gap-4 mb-4'>
               <div>
                 <label className='block text-sm font-medium text-gray-700 mb-1'>Table Name</label>
@@ -471,21 +503,21 @@ export const MachineExample = () => {
                 Drop Table
               </button>
               <button
-                disabled={!state.can({ type: 'CATALOG.SUBSCRIBE', tableSpecName: tableName, callback: () => {} })}
+                disabled={!state.can({ type: 'CATALOG.SUBSCRIBE', subscription: {} })}
                 onClick={handleSubscribe}
                 className={getButtonClasses(
                   'catalog.subscribe',
-                  !state.can({ type: 'CATALOG.SUBSCRIBE', tableSpecName: tableName, callback: () => {} })
+                  !state.can({ type: 'CATALOG.SUBSCRIBE', subscription: {} })
                 )}
               >
                 Subscribe
               </button>
               <button
-                disabled={!state.can({ type: 'CATALOG.UNSUBSCRIBE', tableSpecName: tableName, callback: () => {} })}
+                disabled={!state.can({ type: 'CATALOG.UNSUBSCRIBE', id: tableName })}
                 onClick={handleUnsubscribe}
                 className={getButtonClasses(
                   'catalog.unsubscribe',
-                  !state.can({ type: 'CATALOG.UNSUBSCRIBE', tableSpecName: tableName, callback: () => {} })
+                  !state.can({ type: 'CATALOG.UNSUBSCRIBE', id: tableName })
                 )}
               >
                 Unsubscribe
@@ -496,7 +528,7 @@ export const MachineExample = () => {
       </div>
 
       {/* Right Sidepanel - Machine State */}
-      <div className='w-80 min-w-80 max-w-96 bg-white shadow-lg border-l border-gray-200 p-4 flex flex-col h-full'>
+      <div className='w-96 min-w-80 max-w-96 bg-white shadow-lg border-l border-gray-200 p-4 flex flex-col h-full'>
         <h2 className='text-lg font-semibold mb-4 flex-shrink-0'>Machine State</h2>
 
         {/* Progress Bar - Show only during initialization */}
@@ -507,7 +539,7 @@ export const MachineExample = () => {
             <h4 className='font-medium text-gray-700 mb-1 flex-shrink-0'>Root / Catalog</h4>
             <div className='bg-blue-50 border border-blue-200 rounded-md p-3'>
               <code className='text-sm text-blue-800'>
-                {safeStringify(state.value, 2)} / {safeStringify(dbCatalogState?.value, 2)}
+                {prettyFormat(state.value)} / {prettyFormat(dbCatalogState?.value)}
               </code>
             </div>
           </div>
@@ -515,14 +547,14 @@ export const MachineExample = () => {
           <div className='flex-1 flex flex-col min-h-0'>
             <h4 className='font-medium text-gray-700 mb-2 flex-shrink-0'>Root State</h4>
             <div className='bg-gray-50 border border-gray-200 rounded-md p-3 flex-1 overflow-y-auto min-h-0'>
-              <pre className='text-xs text-gray-700'>{safeStringify(state.context, 2)}</pre>
+              <pre className='text-xs text-gray-700'>{prettyFormat(state.context)}</pre>
             </div>
           </div>
 
           <div className='flex-1 flex flex-col min-h-0'>
             <h4 className='font-medium text-gray-700 mb-2 flex-shrink-0'>Catalog State</h4>
             <div className='bg-gray-50 p-3 rounded-lg flex-1 overflow-y-auto min-h-0'>
-              <pre className='text-xs text-gray-700 whitespace-pre-wrap'>{safeStringify(dbCatalogState, 2)}</pre>
+              <pre className='text-xs text-gray-700 whitespace-pre-wrap'>{prettyFormat(dbCatalogState)}</pre>
             </div>
           </div>
         </div>
