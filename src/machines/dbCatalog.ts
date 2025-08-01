@@ -30,7 +30,7 @@ type ExternalEvents =
       callback?: (tableInstanceName: string, error?: string) => void
     }
   | { type: 'CATALOG.DROP_TABLE'; tableName: string }
-  | { type: 'CATALOG.GET_CONFIGURATION'; callback: (config: TableDefinition[]) => void }
+  | { type: 'CATALOG.LIST_DEFINITIONS'; callback: (config: TableDefinition[]) => void }
 
   // these events are used to subscribe to table changes
   | { type: 'CATALOG.SUBSCRIBE'; tableSpecName: string; callback: (tableInstanceName: string) => void }
@@ -120,7 +120,7 @@ export const dbCatalogLogic = setup({
           //   }),
         },
 
-        'CATALOG.GET_CONFIGURATION': {
+        'CATALOG.LIST_DEFINITIONS': {
           actions: ({ context, event }) => {
             event.callback(context.definitions)
           },

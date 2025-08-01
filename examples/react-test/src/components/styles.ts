@@ -101,7 +101,7 @@ export const getTypeStyles = (type: DisplayOutputResult['type']) => {
         hover: 'hover:bg-red-700',
         disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
       }
-    case 'catalog.get_configuration':
+    case 'catalog.list_definitions':
       return {
         base: 'bg-cyan-500',
         hover: 'hover:bg-cyan-600',

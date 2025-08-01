@@ -66,7 +66,7 @@ The `duckdbMachine` has the following states:
 - `CATALOG.LIST_TABLES`: List all loaded tables
 - `CATALOG.LOAD_TABLE`: Load data into a table
 - `CATALOG.DROP_TABLE`: Drop a table
-- `CATALOG.GET_CONFIGURATION`: Get catalog configuration
+- `CATALOG.LIST_DEFINITIONS`: Get catalog configuration
 
 
 ## Examples

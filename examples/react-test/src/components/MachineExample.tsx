@@ -190,9 +190,9 @@ export const MachineExample = () => {
 
   const handleShowConfiguration = () => {
     send({
-      type: 'CATALOG.GET_CONFIGURATION',
+      type: 'CATALOG.LIST_DEFINITIONS',
       callback: (config: TableDefinition[]) => {
-        addOutput('catalog.get_configuration', safeStringify(config, 2))
+        addOutput('catalog.list_definitions', safeStringify(config, 2))
       },
     })
   }
@@ -429,7 +429,19 @@ export const MachineExample = () => {
                 placeholder={tableType === 'json' ? 'Enter JSON payload...' : 'Enter base64 Arrow data...'}
               />
             </div>
+            
             <div className='flex flex-wrap gap-2 mt-4'>
+            <button
+                disabled={!state.can({ type: 'CATALOG.LIST_DEFINITIONS', callback: () => {} })}
+                onClick={handleShowConfiguration}
+                className={getButtonClasses(
+                  'catalog.list_definitions',
+                  !state.can({ type: 'CATALOG.LIST_DEFINITIONS', callback: () => {} })
+                )}
+              >
+                List Definitions
+              </button>
+
               <button
                 disabled={!state.can({ type: 'CATALOG.LIST_TABLES', callback: () => {} })}
                 onClick={handleListTables}
@@ -475,16 +487,6 @@ export const MachineExample = () => {
                 Drop Table
               </button>
               <button
-                disabled={!state.can({ type: 'CATALOG.GET_CONFIGURATION', callback: () => {} })}
-                onClick={handleShowConfiguration}
-                className={getButtonClasses(
-                  'catalog.get_configuration',
-                  !state.can({ type: 'CATALOG.GET_CONFIGURATION', callback: () => {} })
-                )}
-              >
-                Get Metadata
-              </button>
-              <button
                 disabled={!state.can({ type: 'CATALOG.SUBSCRIBE', tableSpecName: tableName, callback: () => {} })}
                 onClick={handleSubscribe}
                 className={getButtonClasses(
@@ -518,7 +520,7 @@ export const MachineExample = () => {
 
         <div className='space-y-4 flex-1 flex flex-col min-h-0'>
           <div className='flex-shrink-0'>
-            <h3 className='font-medium text-gray-700 mb-2'>Current State</h3>
+            <h4 className='font-medium text-gray-700 mb-1 flex-shrink-0'>Root / Catalog</h4>
             <div className='bg-blue-50 border border-blue-200 rounded-md p-3'>
               <code className='text-sm text-blue-800'>
                 {safeStringify(state.value, 2)} / {safeStringify(dbCatalogState?.value, 2)}
@@ -527,14 +529,14 @@ export const MachineExample = () => {
           </div>
 
           <div className='flex-1 flex flex-col min-h-0'>
-            <h3 className='font-medium text-gray-700 mb-2 flex-shrink-0'>Context</h3>
+            <h4 className='font-medium text-gray-700 mb-2 flex-shrink-0'>Root State</h4>
             <div className='bg-gray-50 border border-gray-200 rounded-md p-3 flex-1 overflow-y-auto min-h-0'>
               <pre className='text-xs text-gray-700'>{safeStringify(state.context, 2)}</pre>
             </div>
           </div>
 
           <div className='flex-1 flex flex-col min-h-0'>
-            <h4 className='text-md font-semibold text-gray-700 mb-2 flex-shrink-0'>Catalog State</h4>
+            <h4 className='font-medium text-gray-700 mb-2 flex-shrink-0'>Catalog State</h4>
             <div className='bg-gray-50 p-3 rounded-lg flex-1 overflow-y-auto min-h-0'>
               <pre className='text-xs text-gray-700 whitespace-pre-wrap'>{safeStringify(dbCatalogState, 2)}</pre>
             </div>
