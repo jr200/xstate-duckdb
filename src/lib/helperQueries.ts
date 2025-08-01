@@ -15,11 +15,11 @@ export function deleteTableStatement(tbl: TableDefinition, id?: number) {
   const tableName = makeTableName(tbl, id)
   let deleteStatement = `DROP TABLE IF EXISTS ${tableName};\n`
 
-  if (tbl.config.hasVersions && id) {
+  if (tbl.isVersioned && id) {
     deleteStatement += `
       DELETE FROM ${DUCKDB_TABLE.catalog.name} 
       WHERE table_type='${tbl.name}' AND id=${id};\n`
-  } else if (!tbl.config.hasVersions) {
+  } else if (!tbl.isVersioned) {
     deleteStatement += `
       DELETE FROM ${DUCKDB_TABLE.catalog.name}
       WHERE table_type='${tbl.name}';\n`

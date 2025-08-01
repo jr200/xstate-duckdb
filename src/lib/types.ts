@@ -9,23 +9,30 @@ type JSONValue =
 
 export type JSONObject = Record<string, JSONValue>
 
-export interface TableConfig {
-  hasVersions: boolean
-  maxVersions: number
-}
 
 export interface TableDefinition {
+  schema: string
   name: string
-  config: TableConfig
+  isVersioned: boolean
+  maxVersions: number
   // loader: (payload: any) => Promise<Table<any>>
 }
 
+
+
+export interface LoadedTableEntry {
+  id: number
+  tableSpecName: string
+  tableInstanceName: string
+  loadedEpoch: number
+}
+
+
 export const DUCKDB_TABLE: Record<string, TableDefinition> = {
   catalog: {
+    schema: 'main',
     name: 'catalog',
-    config: {
-      hasVersions: false,
-      maxVersions: 1,
-    },
+    isVersioned: false,
+    maxVersions: 1,
   },
 }
