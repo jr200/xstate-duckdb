@@ -15,7 +15,7 @@ interface Context {
 }
 
 type Events =
-  | { type: 'CONFIGURE'; dbInitParams: InitDuckDbParams; tables: TableDefinition[] }
+  | { type: 'CONFIGURE'; dbInitParams: InitDuckDbParams; tables: Record<string, TableDefinition> }
   | { type: 'CONNECT' }
   | { type: 'RECONNECT' }
   | { type: 'DISCONNECT' }
@@ -66,7 +66,7 @@ export const duckdbMachine = setup({
           target: 'configured',
           actions: assign({
             dbInitParams: ({ event }) => event.dbInitParams,
-            tables: ({ event }) => Object.fromEntries(event.tables.map(t => [t.name, t])),
+            tables: ({ event }) => event.tables,
           }),
         },
       },

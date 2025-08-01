@@ -37,15 +37,15 @@ export const MachineExample = () => {
       castDecimalToDouble: true,
     },
   })
-  const [tablesConfig, setTablesConfig] = useState(`[
-  {
-    "name": "example_table",
-    "data": [
-      {"id": 1, "name": "Alice"},
-      {"id": 2, "name": "Bob"}
-    ]
-  }
-]`)
+  const [tablesConfig, setTablesConfig] = useState(`{
+    "test_table": {
+      "name": "test_table",
+      "config": {
+        "hasVersions": true,
+        "maxVersions": 2
+      }
+    }
+}`)
 
   const addOutput = (type: DisplayOutputResult['type'], data?: any) => {
     const newOutput: DisplayOutputResult = {
@@ -173,6 +173,7 @@ export const MachineExample = () => {
       })
       addOutput('configure', 'Configuration applied successfully')
     } catch (error) {
+      console.error(error)
       addOutput('error', `Configuration error: ${error}`)
     }
   }
