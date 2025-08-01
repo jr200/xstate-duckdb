@@ -16,7 +16,7 @@ export interface DisplayOutputResult {
     | 'catalog.list_tables'
     | 'catalog.load_table'
     | 'catalog.drop_table'
-    | 'catalog.get_configuration'
+    | 'catalog.list_definitions'
   data?: any
   timestamp: Date
 }

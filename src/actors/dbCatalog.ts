@@ -7,50 +7,56 @@ export interface LoadTableInput {
   nextTableId: number
   payloadType: 'json' | 'b64ipc'
   payloadCompression: 'none' | 'zlib'
-  definitions: TableDefinition[]
+  tableDefinitions: TableDefinition[]
   callback: (tableInstanceName: string, error?: string) => void
 }
 
 export const loadTableIntoDuckDb = fromPromise(async ({ input }: any) => {
-  const { nextTableId, payloadType, definitions, payloadCompression } = input
-  const tableDefinition = findTableDefinition(input.tableName, definitions)
-  if (!tableDefinition) {
-    input.callback?.({ error: `Table definition for table ${input.tableName} not found` })
-    return
-  }
+  try {
+    const { nextTableId, payloadType, tableDefinitions, payloadCompression } = input
+    const tableDefinition = findTableDefinition(input.tableName, tableDefinitions)
+    if (!tableDefinition) {
+      input.callback?.({ error: `Table definition for table ${input.tableName} not found` })
+      return
+    }
 
-  const tableNameInstance = makeTableNameInstance(tableDefinition, nextTableId)
-  const catalogEntry: LoadedTableEntry = {
-    id: nextTableId,
-    tableSpecName: tableDefinition.name,
-    tableInstanceName: tableNameInstance,
-    loadedEpoch: Date.now(),
-  }
-  let result: any
+    const tableNameInstance = makeTableNameInstance(tableDefinition, nextTableId)
+    const catalogEntry: LoadedTableEntry = {
+      tableVersionId: nextTableId,
+      tableSpecName: tableDefinition.name,
+      tableInstanceName: tableNameInstance,
+      loadedEpoch: Date.now(),
+    }
+    let result: any
 
-  const dbConnection = await input.duckDbHandle.connect()
-  if (payloadType === 'json') {
-    result = await loadTableFromJson(
-      tableDefinition.schema,
-      tableNameInstance,
-      input.tablePayload,
-      dbConnection,
-      payloadCompression
-    )
-  } else if (payloadType === 'b64ipc') {
-    result = await loadTableFromB64ipc(
-      tableDefinition.schema,
-      tableNameInstance,
-      input.tablePayload,
-      dbConnection,
-      payloadCompression
-    )
-  } else {
-    result = { error: `Unknown payload type: ${payloadType}` }
-  }
+    const dbConnection = await input.duckDbHandle.connect()
+    if (payloadType === 'json') {
+      result = await loadTableFromJson(
+        tableDefinition.schema,
+        tableNameInstance,
+        input.tablePayload,
+        dbConnection,
+        payloadCompression
+      )
+    } else if (payloadType === 'b64ipc') {
+      result = await loadTableFromB64ipc(
+        tableDefinition.schema,
+        tableNameInstance,
+        input.tablePayload,
+        dbConnection,
+        payloadCompression
+      )
+    } else {
+      result = { error: `Unknown payload type: ${payloadType}` }
+    }
 
-  input.callback?.(tableNameInstance, result.error)
-  return catalogEntry
+    input.callback?.(tableNameInstance, result.error)
+    return catalogEntry
+  } catch (error: any) {
+    console.error('Error loading table into DuckDB', error)
+    input.callback?.({ error: error.message })
+    return { error: error.message }
+  }
 })
 
 function findTableDefinition(tableName: string, definitions: TableDefinition[]) {
@@ -109,7 +115,7 @@ async function loadTableFromB64ipc(
 
 export const pruneTableVersions = fromPromise(async ({ input }: any) => {
   const currentLoadedVersions: LoadedTableEntry[] = input.currentLoadedVersions
-  const definitions: TableDefinition[] = input.definitions
+  const definitions: TableDefinition[] = input.tableDefinitions
   const dbConnection = await input.duckDbHandle.connect()
   await dbConnection.query(`BEGIN TRANSACTION;`)
 
@@ -119,7 +125,7 @@ export const pruneTableVersions = fromPromise(async ({ input }: any) => {
       const { maxVersions, isVersioned, name } = definition
       const loadedTables = currentLoadedVersions
         .filter(loadedTbl => loadedTbl.tableSpecName === name)
-        .sort((a, b) => b.id - a.id)
+        .sort((a, b) => b.tableVersionId - a.tableVersionId)
 
       if (!isVersioned) {
         prunedLoadedVersions = [...prunedLoadedVersions, ...loadedTables]

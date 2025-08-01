@@ -1,12 +1,12 @@
 import { assign, setup } from 'xstate'
-import { TableDefinition, LoadedTableEntry } from '../lib/types'
+import { TableDefinition, LoadedTableEntry, CatalogSubscription } from '../lib/types'
 import { loadTableIntoDuckDb, pruneTableVersions } from '../actors/dbCatalog'
 import { AsyncDuckDB } from '@duckdb/duckdb-wasm'
 
 export interface Context {
-  definitions: TableDefinition[]
+  tableDefinitions: TableDefinition[]
   loadedVersions: Array<LoadedTableEntry>
-  subscriptions: Record<string, Set<() => void>>
+  subscriptions: Map<string, CatalogSubscription>
   nextTableId: number
   duckDbHandle: AsyncDuckDB | null
   error?: string
@@ -15,7 +15,7 @@ export interface Context {
 type ExternalEvents =
   // these events are used to reset the catalog
   | { type: 'CATALOG.RESET' }
-  | { type: 'CATALOG.CONFIGURE'; definitions: TableDefinition[] }
+  | { type: 'CATALOG.CONFIGURE'; tableDefinitions: TableDefinition[] }
   | { type: 'CATALOG.CONNECT' }
   | { type: 'CATALOG.DISCONNECT' }
 
@@ -30,12 +30,18 @@ type ExternalEvents =
       callback?: (tableInstanceName: string, error?: string) => void
     }
   | { type: 'CATALOG.DROP_TABLE'; tableName: string }
-  | { type: 'CATALOG.GET_CONFIGURATION'; callback: (config: TableDefinition[]) => void }
+  | { type: 'CATALOG.LIST_DEFINITIONS'; callback: (config: TableDefinition[]) => void }
 
   // these events are used to subscribe to table changes
-  | { type: 'CATALOG.SUBSCRIBE'; tableName: string; callback: () => void }
-  | { type: 'CATALOG.UNSUBSCRIBE'; tableName: string; callback: () => void }
-  | { type: 'CATALOG.FORCE_NOTIFY'; tableName: string }
+  | {
+      type: 'CATALOG.SUBSCRIBE'
+      subscription: CatalogSubscription
+    }
+  | {
+      type: 'CATALOG.UNSUBSCRIBE'
+      id: string
+    }
+  | { type: 'CATALOG.FORCE_NOTIFY'; id: string }
 
 export type Events = ExternalEvents
 
@@ -52,9 +58,9 @@ export const dbCatalogLogic = setup({
   initial: 'idle',
 
   context: {
-    definitions: [],
+    tableDefinitions: [],
     loadedVersions: [],
-    subscriptions: {},
+    subscriptions: new Map<string, CatalogSubscription>(),
     nextTableId: 1,
     duckDbHandle: null,
   },
@@ -66,7 +72,7 @@ export const dbCatalogLogic = setup({
           target: 'configured',
           actions: [
             assign({
-              definitions: ({ event }: any) => event.catalogConfig,
+              tableDefinitions: ({ event }: any) => event.tableDefinitions,
             }),
           ],
         },
@@ -80,7 +86,7 @@ export const dbCatalogLogic = setup({
           actions: assign(() => ({
             config: [],
             loadedVersions: [],
-            subscriptions: {},
+            subscriptions: new Map<string, CatalogSubscription>(),
             // shoudl we reset this?? nextTableId: 1,
           })),
         },
@@ -120,34 +126,49 @@ export const dbCatalogLogic = setup({
           //   }),
         },
 
-        'CATALOG.GET_CONFIGURATION': {
+        'CATALOG.LIST_DEFINITIONS': {
           actions: ({ context, event }) => {
-            event.callback(context.definitions)
+            event.callback(context.tableDefinitions)
           },
         },
 
         'CATALOG.SUBSCRIBE': {
-          //   actions: assign(({ context, event }) => {
-          //     const subs = context.subscriptions[event.tableName] ?? new Set()
-          //     subs.add(event.callback)
-          //     return {
-          //       subscriptions: { ...context.subscriptions, [event.tableName]: subs },
-          //     }
-          //   }),
+          actions: assign(({ context, event }) => {
+            const { subscription } = event
+            const subscriptionKey = subscription.subscriptionUid ?? subscription.tableSpecName
+            const newSubscriptions = new Map(context.subscriptions)
+            newSubscriptions.set(subscriptionKey, {
+              ...subscription,
+              subscriptionUid: subscriptionKey,
+            })
+            return {
+              subscriptions: newSubscriptions,
+            }
+          }),
         },
 
         'CATALOG.UNSUBSCRIBE': {
-          //   actions: assign(({ context, event }) => {
-          //     const subs = context.subscriptions[event.tableName]
-          //     subs?.delete(event.callback)
-          //     return context
-          //   }),
+          actions: assign(({ context, event }) => {
+            const newSubscriptions = new Map(context.subscriptions)
+            newSubscriptions.delete(event.id)
+            return { subscriptions: newSubscriptions }
+          }),
         },
 
         'CATALOG.FORCE_NOTIFY': {
-          //   actions: ({ context, event }) => {
-          //     context.subscriptions[event.tableName]?.forEach(cb => cb())
-          //   },
+          actions: ({ context, event }) => {
+            const foundSub = context.subscriptions.get(event.id)
+            if (foundSub) {
+              // Find the most recent version of this table
+              const latestTable = context.loadedVersions
+                .filter(entry => entry.tableSpecName === foundSub.tableSpecName)
+                .sort((a, b) => b.tableVersionId - a.tableVersionId)[0]
+
+              if (latestTable) {
+                foundSub.onChange(latestTable.tableInstanceName, latestTable.tableVersionId)
+              }
+            }
+          },
         },
       },
     },
@@ -158,21 +179,34 @@ export const dbCatalogLogic = setup({
           return {
             ...event,
             nextTableId: context.nextTableId,
-            definitions: context.definitions,
+            tableDefinitions: context.tableDefinitions,
             duckDbHandle: context.duckDbHandle,
           }
         },
         onDone: {
           target: 'pruning_versions',
-          actions: assign(({ event, context }) => ({
-            nextTableId: context.nextTableId + 1,
-            loadedVersions: [event.output as LoadedTableEntry, ...context.loadedVersions],
-          })),
+          actions: assign(({ event, context }) => {
+            const loadedTable = event.output as LoadedTableEntry
+            const newLoadedVersions = [loadedTable, ...context.loadedVersions]
+
+            // Notify subscribers about the new table
+            for (const [_, subscription] of context.subscriptions.entries()) {
+              if (subscription.tableSpecName === loadedTable.tableSpecName) {
+                subscription.onChange(loadedTable.tableInstanceName, loadedTable.tableVersionId)
+              }
+            }
+
+            return {
+              nextTableId: context.nextTableId + 1,
+              loadedVersions: newLoadedVersions,
+            }
+          }),
         },
         onError: {
           target: 'error',
           actions: assign({
             nextTableId: ({ context }: any) => context.nextTableId + 1,
+            error: ({ event }: any) => event.error.message,
           }),
         },
       },
@@ -184,7 +218,7 @@ export const dbCatalogLogic = setup({
           return {
             ...event,
             currentLoadedVersions: context.loadedVersions,
-            definitions: context.definitions,
+            tableDefinitions: context.tableDefinitions,
             duckDbHandle: context.duckDbHandle,
           }
         },

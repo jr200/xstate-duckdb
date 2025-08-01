@@ -1,20 +1,27 @@
 import { assign, sendTo, setup } from 'xstate'
-import { AsyncDuckDB, AsyncDuckDBConnection } from '@duckdb/duckdb-wasm'
-import { TableDefinition } from '../lib/types'
-import { closeDuckDb, InitDuckDbParams, initDuckDb } from '../actors/dbInit'
+import {
+  AsyncDuckDB,
+  AsyncDuckDBConnection,
+  DuckDBConfig,
+  InstantiationProgressHandler,
+  LogLevel,
+} from '@duckdb/duckdb-wasm'
+import { MachineConfig } from '../lib/types'
+import { closeDuckDb, initDuckDb } from '../actors/dbInit'
 import { beginTransaction, commitTransaction, rollbackTransaction, QueryDbParams, queryDuckDb } from '../actors/dbQuery'
 import { dbCatalogLogic, Events as DbCatalogEvents } from './dbCatalog'
 
 interface Context {
   duckDbHandle: AsyncDuckDB | null
   duckDbVersion: string | null
-  dbInitParams: InitDuckDbParams | null
+  dbInitParams: DuckDBConfig | null
+  dbLogLevel: LogLevel | null
   transactionConnection: AsyncDuckDBConnection | null
 }
 
 type Events =
-  | { type: 'CONFIGURE'; dbInitParams: InitDuckDbParams; catalogConfig: Record<string, TableDefinition> }
-  | { type: 'CONNECT' }
+  | { type: 'CONNECT'; dbProgressHandler: InstantiationProgressHandler | null }
+  | { type: 'CONFIGURE'; config: MachineConfig }
   | { type: 'RECONNECT' }
   | { type: 'DISCONNECT' }
   | { type: 'RESET' }
@@ -46,6 +53,7 @@ export const duckdbMachine = setup({
     duckDbHandle: null,
     duckDbVersion: null,
     dbInitParams: null,
+    dbLogLevel: null,
     transactionConnection: null,
   },
   invoke: [{ src: 'dbCatalog', id: 'dbCatalog' }],
@@ -59,12 +67,13 @@ export const duckdbMachine = setup({
           target: 'configured',
           actions: [
             assign({
-              dbInitParams: ({ event }) => event.dbInitParams,
+              dbInitParams: ({ event }) => event.config.dbInitParams,
+              dbLogLevel: ({ event }) => event.config.dbLogLevel,
             }),
             sendTo('dbCatalog', ({ event }: any) => {
               return {
-                catalogConfig: event.catalogConfig,
                 type: 'CATALOG.CONFIGURE',
+                tableDefinitions: event.config.tableDefinitions,
               }
             }),
           ],
@@ -102,7 +111,11 @@ export const duckdbMachine = setup({
       ],
       invoke: {
         src: 'initDuckDb',
-        input: ({ context }) => ({ ...context.dbInitParams! }),
+        input: ({ context, event }: { context: Context; event: any }) => ({
+          dbInitParams: context.dbInitParams,
+          dbLogLevel: context.dbLogLevel ?? LogLevel.WARNING,
+          dbProgressHandler: event.dbProgressHandler,
+        }),
         onDone: {
           target: 'connected',
           actions: [
@@ -137,7 +150,7 @@ export const duckdbMachine = setup({
             ({ event }: any) => {
               console.log('forwarding event', event)
             },
-            sendTo('dbCatalog', ({ event, context }: { event: DbCatalogEvents; context: Context }) => {
+            sendTo('dbCatalog', ({ event, context }: { event: Events; context: Context }) => {
               return { ...event, duckDbHandle: context.duckDbHandle }
             }),
           ],

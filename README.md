@@ -61,12 +61,12 @@ The `duckdbMachine` has the following states:
 
 #### Catalog Events
 
-- `CATALOG.SUBSCRIBE`: Subscribe to table changes
-- `CATALOG.UNSUBSCRIBE`: Unsubscribe from table changes
+- `CATALOG.SUBSCRIBE`: Subscribe to table changes with a subscription object
+- `CATALOG.UNSUBSCRIBE`: Unsubscribe from table changes using subscription ID
 - `CATALOG.LIST_TABLES`: List all loaded tables
 - `CATALOG.LOAD_TABLE`: Load data into a table
 - `CATALOG.DROP_TABLE`: Drop a table
-- `CATALOG.GET_CONFIGURATION`: Get catalog configuration
+- `CATALOG.LIST_DEFINITIONS`: Get catalog configuration
 
 
 ## Examples
@@ -160,13 +160,58 @@ const handleTableOperations = () => {
     callback: (tables) => console.log('Tables:', tables),
   })
 
-  // Subscribe to table changes
+  // Subscribe to table changes with enhanced subscription object
   send({
     type: 'CATALOG.SUBSCRIBE',
-    tableName: 'my_table',
-    callback: (update) => console.log('Table updated:', update),
+    subscription: {
+      tableSpecName: 'my_table',
+      onSubscribe: (id: string, tableSpecName: string) => {
+        console.log(`Subscribed to ${tableSpecName} with ID: ${id}`)
+      },
+      onChange: (tableInstanceName: string, tableVersionId: number) => {
+        console.log(`Table updated: ${tableInstanceName}, version: ${tableVersionId}`)
+      },
+    },
+  })
+
+  // Unsubscribe using the subscription ID
+  send({
+    type: 'CATALOG.UNSUBSCRIBE',
+    id: 'subscription_id_here',
   })
 }
+```
+
+### Subscription Management
+
+The subscription system provides real-time notifications when tables are updated:
+
+```typescript
+// Create a subscription with custom callbacks
+const subscription = {
+  tableSpecName: 'users',
+  onSubscribe: (id: string, tableSpecName: string) => {
+    console.log(`Successfully subscribed to ${tableSpecName} with ID: ${id}`)
+    // Store the subscription ID for later unsubscription
+    setSubscriptionId(id)
+  },
+  onChange: (tableInstanceName: string, tableVersionId: number) => {
+    console.log(`Table ${tableSpecName} updated to version ${tableVersionId}`)
+    // Handle table updates - e.g., refresh UI, fetch new data
+    refreshTableData(tableInstanceName)
+  },
+}
+
+send({
+  type: 'CATALOG.SUBSCRIBE',
+  subscription,
+})
+
+// Later, unsubscribe using the stored ID
+send({
+  type: 'CATALOG.UNSUBSCRIBE',
+  id: subscriptionId,
+})
 ```
 
 ## Development

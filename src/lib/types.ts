@@ -1,3 +1,5 @@
+import { DuckDBConfig, InstantiationProgressHandler, LogLevel } from '@duckdb/duckdb-wasm'
+
 type JSONPrimitive = string | number | boolean | null
 
 type JSONValue =
@@ -18,7 +20,7 @@ export interface TableDefinition {
 }
 
 export interface LoadedTableEntry {
-  id: number
+  tableVersionId: number
   tableSpecName: string
   tableInstanceName: string
   loadedEpoch: number
@@ -31,4 +33,26 @@ export const DUCKDB_TABLE: Record<string, TableDefinition> = {
     isVersioned: false,
     maxVersions: 1,
   },
+}
+
+interface CatalogMachineConfig {
+  tableDefinitions: TableDefinition[]
+}
+
+interface DuckDbMachineConfig {
+  dbLogLevel: LogLevel
+  dbInitParams: DuckDBConfig | null
+}
+
+export type MachineConfig = DuckDbMachineConfig & CatalogMachineConfig
+
+export type InitDuckDbParams = DuckDbMachineConfig & {
+  dbProgressHandler: InstantiationProgressHandler | null
+}
+
+export interface CatalogSubscription {
+  tableSpecName: string
+  subscriptionUid?: string
+  onSubscribe: (id: string, tableSpecName: string) => void
+  onChange: (tableInstanceName: string, tableVersionId: number) => void
 }
