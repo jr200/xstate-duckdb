@@ -11,6 +11,8 @@ type ExternalEvents =
   // these events are used to reset the catalog
   | { type: 'CATALOG.RESET' }
   | { type: 'CATALOG.CONFIGURE'; config: Record<string, TableDefinition> }
+  | { type: 'CATALOG.CONNECT' }
+  | { type: 'CATALOG.DISCONNECT' }
 
   // these events are used to load data and delete tables
   | { type: 'CATALOG.LIST_TABLES' }
@@ -62,6 +64,16 @@ export const dbCatalogLogic = setup({
             loadedVersions: {},
             subscriptions: {},
           })),
+        },
+        'CATALOG.CONNECT': {
+          target: 'connected',
+        },
+      }
+    },
+    connected: {
+      on: {
+        'CATALOG.DISCONNECT': {
+          target: 'configured',
         },
         'CATALOG.LOAD_TABLE_FROM_DATA': {
           //   actors: {

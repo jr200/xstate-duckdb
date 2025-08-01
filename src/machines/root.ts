@@ -107,10 +107,15 @@ export const duckdbMachine = setup({
         input: ({ context }) => ({ ...context.dbInitParams! }),
         onDone: {
           target: 'connected',
-          actions: assign(({ event }) => ({
-            duckDbHandle: event.output.db,
-            duckDbVersion: event.output.version,
-          })),
+          actions: [
+            assign(({ event }) => ({
+              duckDbHandle: event.output.db,
+              duckDbVersion: event.output.version,
+            })),
+            sendTo('dbCatalog', {
+              type: 'CATALOG.CONNECT',
+            }),
+          ],
         },
       },
     },
@@ -123,9 +128,9 @@ export const duckdbMachine = setup({
 
         DISCONNECT: {
           actions: [
-            () => {
-              console.log('DISCONNECT entry')
-            },
+            sendTo('dbCatalog', {
+              type: 'CATALOG.DISCONNECT',
+            }),
           ],
           target: 'disconnected',
         },
