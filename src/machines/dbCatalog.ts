@@ -33,9 +33,9 @@ type ExternalEvents =
   | { type: 'CATALOG.GET_CONFIGURATION'; callback: (config: TableDefinition[]) => void }
 
   // these events are used to subscribe to table changes
-  | { type: 'CATALOG.SUBSCRIBE'; tableName: string; callback: () => void }
-  | { type: 'CATALOG.UNSUBSCRIBE'; tableName: string; callback: () => void }
-  | { type: 'CATALOG.FORCE_NOTIFY'; tableName: string }
+  | { type: 'CATALOG.SUBSCRIBE'; tableSpecName: string; callback: (tableInstanceName: string) => void }
+  | { type: 'CATALOG.UNSUBSCRIBE'; tableSpecName: string; callback: (tableInstanceName: string) => void }
+  | { type: 'CATALOG.FORCE_NOTIFY'; tableSpecName: string }
 
 export type Events = ExternalEvents
 
