@@ -24,7 +24,7 @@ export async function registerDatasetOnly(
       );
   
       ${
-        tbl.config.hasVersions
+        tbl.isVersioned
           ? `INSERT INTO ${DUCKDB_TABLE.catalog.name} (table_type) VALUES ('${tbl.name}') RETURNING *;`
           : `
           -- For non-versioned tables, delete existing entries first
@@ -69,7 +69,7 @@ export async function findVersionsToPrune(tbl: TableDefinition, connection: Asyn
           FROM ${DUCKDB_TABLE.catalog.name}
           WHERE table_type = '${tbl.name}'
       ) sub
-      WHERE rn >= ${tbl.config.maxVersions};
+      WHERE rn >= ${tbl.maxVersions};
     `
 
   const toDelete = await queryDuckDbInternal({
@@ -82,7 +82,7 @@ export async function findVersionsToPrune(tbl: TableDefinition, connection: Asyn
 }
 
 export function makeTableName(tbl: TableDefinition, id?: number): string {
-  if (tbl.config.hasVersions && id) {
+  if (tbl.isVersioned && id) {
     return `${tbl.name}_${id}`
   }
   return tbl.name
@@ -104,7 +104,7 @@ export async function cleanupOldTables(
 
     let cleanupStatement = 'BEGIN TRANSACTION;\n'
 
-    if (tbl.config.hasVersions) {
+    if (tbl.isVersioned) {
       cleanupStatement += oldTableIds.map(id => deleteTableStatement(tbl, id)).join('\n')
     } else {
       cleanupStatement += deleteTableStatement(tbl)
