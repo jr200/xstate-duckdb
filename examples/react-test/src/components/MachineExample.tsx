@@ -48,13 +48,19 @@ export const MachineExample = () => {
 
   const getTypeStyles = (type: DisplayOutputResult['type']) => {
     switch (type) {
-      case 'configure':
+      case 'error':
         return {
-          base: 'bg-blue-500',
-          hover: 'hover:bg-blue-600',
+          base: 'bg-red-500',
+          hover: 'hover:bg-red-600',
           disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
         }
-      case 'connect':
+        case 'configure':
+          return {
+            base: 'bg-blue-500',
+            hover: 'hover:bg-blue-600',
+            disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
+          }
+        case 'connect':
         return {
           base: 'bg-green-500',
           hover: 'hover:bg-green-600',
@@ -110,32 +116,32 @@ export const MachineExample = () => {
         }
       case 'catalog.unsubscribe':
         return {
-          base: 'bg-gray-500',
-          hover: 'hover:bg-gray-600',
+          base: 'bg-purple-500',
+          hover: 'hover:bg-purple-600',
           disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
         }
-      case 'catalog.listTables':
+      case 'catalog.list_tables':
         return {
-          base: 'bg-gray-500',
-          hover: 'hover:bg-gray-600',
+          base: 'bg-blue-500',
+          hover: 'hover:bg-blue-600',
           disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
         }
-      case 'catalog.loadTableFromData':
+      case 'catalog.load_table_from_data':
         return {
-          base: 'bg-gray-500',
-          hover: 'hover:bg-gray-600',
+          base: 'bg-emerald-500',
+          hover: 'hover:bg-emerald-600',
           disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
         }
-      case 'catalog.dropTable':
+      case 'catalog.drop_table':
         return {
           base: 'bg-red-600',
           hover: 'hover:bg-red-700',
           disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
         }
-      case 'catalog.getTableMetadata':
+      case 'catalog.get_table_metadata':
         return {
-          base: 'bg-gray-500',
-          hover: 'hover:bg-gray-600',
+          base: 'bg-cyan-500',
+          hover: 'hover:bg-cyan-600',
           disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
         }
       case 'clear':
@@ -257,7 +263,7 @@ export const MachineExample = () => {
   // New catalog handlers
   const handleListTables = () => {
     send({ type: 'CATALOG.LIST_TABLES' })
-    addOutput('catalog.listTables', 'List tables command sent')
+    addOutput('catalog.list_tables', 'List tables command sent')
   }
 
   const handleLoadTableFromData = () => {
@@ -282,7 +288,7 @@ export const MachineExample = () => {
         table: tableDefinition,
         payload,
       })
-      addOutput('catalog.loadTableFromData', `Load table command sent for: ${tableName}`)
+      addOutput('catalog.load_table_from_data', `Load table command sent for: ${tableName}`)
     } catch (error) {
       console.error(error)
       addOutput('error', `Load table error: ${error}`)
@@ -291,12 +297,12 @@ export const MachineExample = () => {
 
     const handleDropTable = () => {
     send({ type: 'CATALOG.DROP_TABLE', tableName })
-    addOutput('catalog.dropTable', `Drop table command sent for: ${tableName}`)
+    addOutput('catalog.drop_table', `Drop table command sent for: ${tableName}`)
   }
 
   const handleGetTableMetadata = () => {
     send({ type: 'CATALOG.GET_TABLE_METADATA', tableName })
-    addOutput('catalog.getTableMetadata', `Get table metadata command sent for: ${tableName}`)
+    addOutput('catalog.get_table_metadata', `Get table metadata command sent for: ${tableName}`)
   }
 
   return (
@@ -495,26 +501,6 @@ export const MachineExample = () => {
               >
                 Rollback
               </button>
-              <button
-                disabled={!state.can({ type: 'CATALOG.SUBSCRIBE', tableName: '', callback: () => {} })}
-                onClick={handleSubscribe}
-                className={getButtonClasses(
-                  'catalog.subscribe',
-                  !state.can({ type: 'CATALOG.SUBSCRIBE', tableName: '', callback: () => {} })
-                )}
-              >
-                Subscribe
-              </button>
-              <button
-                disabled={!state.can({ type: 'CATALOG.UNSUBSCRIBE', tableName: '', callback: () => {} })}
-                onClick={handleUnsubscribe}
-                className={getButtonClasses(
-                  'catalog.unsubscribe',
-                  !state.can({ type: 'CATALOG.UNSUBSCRIBE', tableName: '', callback: () => {} })
-                )}
-              >
-                Unsubscribe
-              </button>
             </div>
           </div>
 
@@ -557,30 +543,50 @@ export const MachineExample = () => {
               <button
                 disabled={!state.can({ type: 'CATALOG.LIST_TABLES' })}
                 onClick={handleListTables}
-                className={getButtonClasses('catalog.listTables', !state.can({ type: 'CATALOG.LIST_TABLES' }))}
+                className={getButtonClasses('catalog.list_tables', !state.can({ type: 'CATALOG.LIST_TABLES' }))}
               >
                 List Tables
               </button>
               <button
                 disabled={!state.can({ type: 'CATALOG.LOAD_TABLE_FROM_DATA', table: {}, payload: {} })}
                 onClick={handleLoadTableFromData}
-                className={getButtonClasses('catalog.loadTableFromData', !state.can({ type: 'CATALOG.LOAD_TABLE_FROM_DATA', table: {}, payload: {} }))}
+                className={getButtonClasses('catalog.load_table_from_data', !state.can({ type: 'CATALOG.LOAD_TABLE_FROM_DATA', table: {}, payload: {} }))}
               >
                 Load Table
               </button>
               <button
                 disabled={!state.can({ type: 'CATALOG.DROP_TABLE', tableName: '' })}
                 onClick={handleDropTable}
-                className={getButtonClasses('catalog.dropTable', !state.can({ type: 'CATALOG.DROP_TABLE', tableName: '' }))}
+                className={getButtonClasses('catalog.drop_table', !state.can({ type: 'CATALOG.DROP_TABLE', tableName: '' }))}
               >
                 Drop Table
               </button>
               <button
                 disabled={!state.can({ type: 'CATALOG.GET_TABLE_METADATA', tableName: '' })}
                 onClick={handleGetTableMetadata}
-                className={getButtonClasses('catalog.getTableMetadata', !state.can({ type: 'CATALOG.GET_TABLE_METADATA', tableName: '' }))}
+                className={getButtonClasses('catalog.get_table_metadata', !state.can({ type: 'CATALOG.GET_TABLE_METADATA', tableName: '' }))}
               >
                 Get Metadata
+              </button>
+              <button
+                disabled={!state.can({ type: 'CATALOG.SUBSCRIBE', tableName: '', callback: () => {} })}
+                onClick={handleSubscribe}
+                className={getButtonClasses(
+                  'catalog.subscribe',
+                  !state.can({ type: 'CATALOG.SUBSCRIBE', tableName: '', callback: () => {} })
+                )}
+              >
+                Subscribe
+              </button>
+              <button
+                disabled={!state.can({ type: 'CATALOG.UNSUBSCRIBE', tableName: '', callback: () => {} })}
+                onClick={handleUnsubscribe}
+                className={getButtonClasses(
+                  'catalog.unsubscribe',
+                  !state.can({ type: 'CATALOG.UNSUBSCRIBE', tableName: '', callback: () => {} })
+                )}
+              >
+                Unsubscribe
               </button>
             </div>
           </div>

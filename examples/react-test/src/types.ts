@@ -13,10 +13,10 @@ export interface DisplayOutputResult {
     | 'clear'
     | 'catalog.subscribe'
     | 'catalog.unsubscribe'
-    | 'catalog.listTables'
-    | 'catalog.loadTableFromData'
-    | 'catalog.dropTable'
-    | 'catalog.getTableMetadata'
+    | 'catalog.list_tables'
+    | 'catalog.load_table_from_data'
+    | 'catalog.drop_table'
+    | 'catalog.get_table_metadata'
   data?: any
   timestamp: Date
 }
