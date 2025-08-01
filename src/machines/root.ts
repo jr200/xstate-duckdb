@@ -46,8 +46,6 @@ export const duckdbMachine = setup({
     duckDbHandle: null,
     duckDbVersion: null,
     dbInitParams: null,
-    subscriptions: {},
-    loadedVersions: {},
     transactionConnection: null,
   },
   invoke: [{ src: 'dbCatalog', id: 'dbCatalog' }],

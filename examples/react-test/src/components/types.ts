@@ -14,7 +14,7 @@ export interface DisplayOutputResult {
     | 'catalog.subscribe'
     | 'catalog.unsubscribe'
     | 'catalog.list_tables'
-    | 'catalog.load_table_from_data'
+    | 'catalog.load_table'
     | 'catalog.drop_table'
     | 'catalog.get_configuration'
   data?: any

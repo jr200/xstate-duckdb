@@ -1,5 +1,6 @@
 import { assign, setup } from 'xstate'
 import { TableDefinition } from '../lib/types'
+import { loadTableIntoDuckDb } from '../actors/dbCatalog'
 
 export interface LoadedTableEntry {
   id: number
@@ -11,6 +12,7 @@ export interface Context {
   config: TableDefinition[]
   loadedVersions: Array<LoadedTableEntry>
   subscriptions: Record<string, Set<() => void>>
+  nextTableId: number
 }
 
 type ExternalEvents =
@@ -21,8 +23,8 @@ type ExternalEvents =
   | { type: 'CATALOG.DISCONNECT' }
 
   // these events are used to load data and delete tables
-  | { type: 'CATALOG.LIST_TABLES', callback: (tables: LoadedTableEntry[]) => void }
-  | { type: 'CATALOG.LOAD_TABLE_FROM_DATA'; table: TableDefinition; payload: any }
+  | { type: 'CATALOG.LIST_TABLES'; callback: (tables: LoadedTableEntry[]) => void }
+  | { type: 'CATALOG.LOAD_TABLE'; tableName: string; tablePayload: any; payloadType: 'json' | 'b64ipc', callback?: (tableName: string, tableVersion: number, error?: string) => void }
   | { type: 'CATALOG.DROP_TABLE'; tableName: string }
   | { type: 'CATALOG.GET_CONFIGURATION'; callback: (config: TableDefinition[]) => void }
 
@@ -38,6 +40,9 @@ export const dbCatalogLogic = setup({
     context: {} as Context,
     events: {} as Events,
   },
+  actors: {
+    loadTableIntoDuckDb: loadTableIntoDuckDb,
+  },
 }).createMachine({
   initial: 'idle',
 
@@ -45,6 +50,7 @@ export const dbCatalogLogic = setup({
     config: [],
     loadedVersions: [],
     subscriptions: {},
+    nextTableId: 1,
   },
 
   states: {
@@ -69,12 +75,13 @@ export const dbCatalogLogic = setup({
             config: [],
             loadedVersions: [],
             subscriptions: {},
+            // shoudl we reset this?? nextTableId: 1,
           })),
         },
         'CATALOG.CONNECT': {
           target: 'connected',
         },
-      }
+      },
     },
     connected: {
       on: {
@@ -82,34 +89,12 @@ export const dbCatalogLogic = setup({
           target: 'configured',
         },
         'CATALOG.LIST_TABLES': {
-          actions: (({ context, event }) => {
+          actions: ({ context, event }) => {
             event.callback(context.loadedVersions)
-          }),
+          },
         },
-        'CATALOG.LOAD_TABLE_FROM_DATA': {
-          //   actors: {
-          //     loadTable: fromPromise(async ({ context, event }) => {
-          //     const { tableName, payload } = event
-          //     const def = context.config[tableName]
-          //     if (!def) throw new Error(`Unknown table: ${tableName}`)
-          //     // load the data using the user-provided loader
-          //     const table = await def.loader(payload)
-          //     const connection = await table.db.connect()
-          //     const { tableName: fullName, oldTableIds } = await registerDatasetOnly(def, connection)
-          //     if (!fullName) throw new Error('Failed to register dataset')
-          //     await table.insertInto(fullName)
-          //     if (oldTableIds.length > 0) {
-          //       queueMicrotask(async () => {
-          //         const cleanupConn = await table.db.connect()
-          //         await cleanupOldTables(def, oldTableIds, cleanupConn)
-          //       })
-          //     }
-          //     const id = parseInt(fullName.split('_').at(-1) ?? '0')
-          //     const updated = [id, ...(context.loadedVersions[tableName] ?? [])].slice(0, def.config.maxVersions)
-          //     context.loadedVersions[tableName] = updated
-          //     context.subscriptions[tableName]?.forEach(cb => cb())
-          //   }),
-          // }
+        'CATALOG.LOAD_TABLE': {
+          target: 'loading_table',
         },
 
         'CATALOG.DROP_TABLE': {
@@ -127,9 +112,9 @@ export const dbCatalogLogic = setup({
         },
 
         'CATALOG.GET_CONFIGURATION': {
-          actions: (({ context, event }) => {
+          actions: ({ context, event }) => {
             event.callback(context.config)
-          }),
+          },
         },
 
         'CATALOG.SUBSCRIBE': {
@@ -154,6 +139,31 @@ export const dbCatalogLogic = setup({
           //   actions: ({ context, event }) => {
           //     context.subscriptions[event.tableName]?.forEach(cb => cb())
           //   },
+        },
+      },
+    },
+    loading_table: {
+      invoke: {
+        src: 'loadTableIntoDuckDb',
+        input: ({ event, context }: any) => { return { ...event, nextTableId: context.nextTableId } },
+        onDone: {
+          target: 'connected',
+          actions: assign({
+            nextTableId: ({ context }: any) => context.nextTableId + 1,
+          }),
+        },
+        onError: {
+          target: 'error',
+          actions: assign({
+            nextTableId: ({ context }: any) => context.nextTableId + 1,
+          }),
+        },
+      },
+    },
+    error: {
+      on: {
+        'CATALOG.RESET': {
+          target: 'idle',
         },
       },
     },

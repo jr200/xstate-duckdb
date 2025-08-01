@@ -1,5 +1,12 @@
 import React, { useState } from 'react'
-import { duckdbMachine, InitDuckDbParams, LoadedTableEntry, QueryDbParams, safeStringify, TableDefinition } from 'xstate-duckdb'
+import {
+  duckdbMachine,
+  InitDuckDbParams,
+  LoadedTableEntry,
+  QueryDbParams,
+  safeStringify,
+  TableDefinition,
+} from 'xstate-duckdb'
 import { useActor, useSelector } from '@xstate/react'
 import { DuckDBConfig, InstantiationProgress, LogLevel } from '@duckdb/duckdb-wasm'
 import { DisplayOutputResult } from './types'
@@ -28,7 +35,7 @@ export const MachineExample = () => {
 
   // New state for catalog panel
   const [tableName, setTableName] = useState('test_table')
-  const [tableType, setTableType] = useState<'arrow' | 'json'>('arrow')
+  const [tableType, setTableType] = useState<'b64ipc' | 'json'>('b64ipc')
   const [tablePayload, setTablePayload] = useState('')
 
   const addOutput = (type: DisplayOutputResult['type'], data?: any) => {
@@ -52,13 +59,13 @@ export const MachineExample = () => {
           hover: 'hover:bg-red-600',
           disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
         }
-        case 'configure':
-          return {
-            base: 'bg-blue-500',
-            hover: 'hover:bg-blue-600',
-            disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
-          }
-        case 'connect':
+      case 'configure':
+        return {
+          base: 'bg-blue-500',
+          hover: 'hover:bg-blue-600',
+          disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
+        }
+      case 'connect':
         return {
           base: 'bg-green-500',
           hover: 'hover:bg-green-600',
@@ -124,7 +131,7 @@ export const MachineExample = () => {
           hover: 'hover:bg-blue-600',
           disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
         }
-      case 'catalog.load_table_from_data':
+      case 'catalog.load_table':
         return {
           base: 'bg-emerald-500',
           hover: 'hover:bg-emerald-600',
@@ -260,21 +267,16 @@ export const MachineExample = () => {
 
   // New catalog handlers
   const handleListTables = () => {
-    send({ type: 'CATALOG.LIST_TABLES', callback: (tables: LoadedTableEntry[]) => {
-      addOutput('catalog.list_tables', safeStringify(tables, 2))
-    } })
+    send({
+      type: 'CATALOG.LIST_TABLES',
+      callback: (tables: LoadedTableEntry[]) => {
+        addOutput('catalog.list_tables', safeStringify(tables, 2))
+      },
+    })
   }
 
   const handleLoadTableFromData = () => {
     try {
-      const tableDefinition = {
-        name: tableName,
-        config: {
-          hasVersions: true,
-          maxVersions: 2,
-        },
-      }
-      
       let payload
       if (tableType === 'json') {
         payload = JSON.parse(tablePayload)
@@ -283,26 +285,32 @@ export const MachineExample = () => {
       }
 
       send({
-        type: 'CATALOG.LOAD_TABLE_FROM_DATA',
-        table: tableDefinition,
-        payload,
+        type: 'CATALOG.LOAD_TABLE',
+        tableName: tableName,
+        tablePayload: payload,
+        payloadType: tableType,
+        callback: (tableName: string, tableVersion: number, error?: string) => {
+          addOutput('catalog.load_table', { tableName, tableVersion, error })
+        },
       })
-      addOutput('catalog.load_table_from_data', `Load table command sent for: ${tableName}`)
     } catch (error) {
       console.error(error)
       addOutput('error', `Load table error: ${error}`)
     }
   }
 
-    const handleDropTable = () => {
+  const handleDropTable = () => {
     send({ type: 'CATALOG.DROP_TABLE', tableName })
     addOutput('catalog.drop_table', `Drop table command sent for: ${tableName}`)
   }
 
   const handleShowConfiguration = () => {
-    send({ type: 'CATALOG.GET_CONFIGURATION', callback: (config: TableDefinition[]) => {
-      addOutput('catalog.get_configuration', safeStringify(config, 2))
-    } })
+    send({
+      type: 'CATALOG.GET_CONFIGURATION',
+      callback: (config: TableDefinition[]) => {
+        addOutput('catalog.get_configuration', safeStringify(config, 2))
+      },
+    })
   }
 
   return (
@@ -369,8 +377,6 @@ export const MachineExample = () => {
 
         {/* Catalog and Controls Panels - Side by Side */}
         <div className='flex gap-4 flex-1'>
-
-
           {/* Controls Panel */}
           <div className='w-1/2 bg-white rounded-lg shadow-md p-4 flex flex-col'>
             <h2 className='text-lg font-semibold mb-2'>Query</h2>
@@ -432,7 +438,7 @@ export const MachineExample = () => {
                       sql: query,
                       callback: () => {},
                       description: 'QUERY.EXECUTE',
-                      resultType: 'arrow',
+                      resultType: 'json',
                     },
                   })
                 }
@@ -445,7 +451,7 @@ export const MachineExample = () => {
                       sql: query,
                       callback: () => {},
                       description: 'QUERY.EXECUTE',
-                      resultType: 'arrow',
+                      resultType: 'json',
                     },
                   })
                 )}
@@ -467,7 +473,7 @@ export const MachineExample = () => {
                       sql: query,
                       callback: () => {},
                       description: 'TRANSACTION.EXECUTE',
-                      resultType: 'arrow',
+                      resultType: 'json',
                     },
                   })
                 }
@@ -480,7 +486,7 @@ export const MachineExample = () => {
                       sql: query,
                       callback: () => {},
                       description: 'TRANSACTION.EXECUTE',
-                      resultType: 'arrow',
+                      resultType: 'json',
                     },
                   })
                 )}
@@ -522,10 +528,10 @@ export const MachineExample = () => {
                 <label className='block text-sm font-medium text-gray-700 mb-1'>Table Type</label>
                 <select
                   value={tableType}
-                  onChange={e => setTableType(e.target.value as 'arrow' | 'json')}
+                  onChange={e => setTableType(e.target.value as 'b64ipc' | 'json')}
                   className='w-full p-2 border border-gray-300 rounded-md text-sm'
                 >
-                  <option value='arrow'>Arrow</option>
+                  <option value='b64ipc'>IPC (Base64)</option>
                   <option value='json'>JSON</option>
                 </select>
               </div>
@@ -543,28 +549,42 @@ export const MachineExample = () => {
               <button
                 disabled={!state.can({ type: 'CATALOG.LIST_TABLES', callback: () => {} })}
                 onClick={handleListTables}
-                className={getButtonClasses('catalog.list_tables', !state.can({ type: 'CATALOG.LIST_TABLES', callback: () => {} }))}
+                className={getButtonClasses(
+                  'catalog.list_tables',
+                  !state.can({ type: 'CATALOG.LIST_TABLES', callback: () => {} })
+                )}
               >
                 List Tables
               </button>
               <button
-                disabled={!state.can({ type: 'CATALOG.LOAD_TABLE_FROM_DATA', table: {}, payload: {} })}
+                disabled={
+                  !state.can({ type: 'CATALOG.LOAD_TABLE', tableName: '', tablePayload: '', payloadType: 'b64ipc' })
+                }
                 onClick={handleLoadTableFromData}
-                className={getButtonClasses('catalog.load_table_from_data', !state.can({ type: 'CATALOG.LOAD_TABLE_FROM_DATA', table: {}, payload: {} }))}
+                className={getButtonClasses(
+                  'catalog.load_table',
+                  !state.can({ type: 'CATALOG.LOAD_TABLE', tableName: '', tablePayload: '', payloadType: 'b64ipc' })
+                )}
               >
                 Load Table
               </button>
               <button
                 disabled={!state.can({ type: 'CATALOG.DROP_TABLE', tableName: '' })}
                 onClick={handleDropTable}
-                className={getButtonClasses('catalog.drop_table', !state.can({ type: 'CATALOG.DROP_TABLE', tableName: '' }))}
+                className={getButtonClasses(
+                  'catalog.drop_table',
+                  !state.can({ type: 'CATALOG.DROP_TABLE', tableName: '' })
+                )}
               >
                 Drop Table
               </button>
               <button
                 disabled={!state.can({ type: 'CATALOG.GET_CONFIGURATION', callback: () => {} })}
                 onClick={handleShowConfiguration}
-                className={getButtonClasses('catalog.get_configuration', !state.can({ type: 'CATALOG.GET_CONFIGURATION', callback: () => {} }))}
+                className={getButtonClasses(
+                  'catalog.get_configuration',
+                  !state.can({ type: 'CATALOG.GET_CONFIGURATION', callback: () => {} })
+                )}
               >
                 Get Metadata
               </button>
@@ -591,8 +611,6 @@ export const MachineExample = () => {
             </div>
           </div>
         </div>
-
-        
       </div>
 
       {/* Right Sidepanel - Machine State */}
