@@ -15,7 +15,7 @@ export interface DisplayOutputResult {
     | 'catalog.unsubscribe'
     | 'catalog.listTables'
     | 'catalog.loadTableFromData'
-    | 'catalog.deleteTable'
+    | 'catalog.dropTable'
     | 'catalog.getTableMetadata'
   data?: any
   timestamp: Date

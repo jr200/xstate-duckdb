@@ -15,7 +15,7 @@ type ExternalEvents =
   // these events are used to load data and delete tables
   | { type: 'CATALOG.LIST_TABLES' }
   | { type: 'CATALOG.LOAD_TABLE_FROM_DATA'; table: TableDefinition; payload: any }
-  | { type: 'CATALOG.DELETE_TABLE'; tableName: string }
+  | { type: 'CATALOG.DROP_TABLE'; tableName: string }
   | { type: 'CATALOG.GET_TABLE_METADATA'; tableName: string }
 
   // these events are used to subscribe to table changes
@@ -89,7 +89,7 @@ export const dbCatalogLogic = setup({
           // }
         },
 
-        'CATALOG.DELETE_TABLE': {
+        'CATALOG.DROP_TABLE': {
           //   actions: fromPromise(async ({ context, event }) => {
           //     const { tableName } = event
           //     const versions = context.loadedVersions[tableName] ?? []

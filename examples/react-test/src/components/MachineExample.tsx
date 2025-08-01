@@ -28,6 +28,11 @@ export const MachineExample = () => {
     }
 }`)
 
+  // New state for catalog panel
+  const [tableName, setTableName] = useState('test_table')
+  const [tableType, setTableType] = useState<'arrow' | 'json'>('json')
+  const [tablePayload, setTablePayload] = useState('')
+
   const addOutput = (type: DisplayOutputResult['type'], data?: any) => {
     const newOutput: DisplayOutputResult = {
       type,
@@ -121,7 +126,7 @@ export const MachineExample = () => {
           hover: 'hover:bg-gray-600',
           disabled: 'bg-gray-400 text-gray-200 cursor-not-allowed',
         }
-      case 'catalog.deleteTable':
+      case 'catalog.dropTable':
         return {
           base: 'bg-red-600',
           hover: 'hover:bg-red-700',
@@ -249,6 +254,51 @@ export const MachineExample = () => {
     addOutput('transaction.rollback', 'Transaction rollback command sent')
   }
 
+  // New catalog handlers
+  const handleListTables = () => {
+    send({ type: 'CATALOG.LIST_TABLES' })
+    addOutput('catalog.listTables', 'List tables command sent')
+  }
+
+  const handleLoadTableFromData = () => {
+    try {
+      const tableDefinition = {
+        name: tableName,
+        config: {
+          hasVersions: true,
+          maxVersions: 2,
+        },
+      }
+      
+      let payload
+      if (tableType === 'json') {
+        payload = JSON.parse(tablePayload)
+      } else {
+        payload = tablePayload // For arrow, this would be base64 encoded data
+      }
+
+      send({
+        type: 'CATALOG.LOAD_TABLE_FROM_DATA',
+        table: tableDefinition,
+        payload,
+      })
+      addOutput('catalog.loadTableFromData', `Load table command sent for: ${tableName}`)
+    } catch (error) {
+      console.error(error)
+      addOutput('error', `Load table error: ${error}`)
+    }
+  }
+
+    const handleDropTable = () => {
+    send({ type: 'CATALOG.DROP_TABLE', tableName })
+    addOutput('catalog.dropTable', `Drop table command sent for: ${tableName}`)
+  }
+
+  const handleGetTableMetadata = () => {
+    send({ type: 'CATALOG.GET_TABLE_METADATA', tableName })
+    addOutput('catalog.getTableMetadata', `Get table metadata command sent for: ${tableName}`)
+  }
+
   return (
     <div className='flex h-screen bg-gray-100'>
       {/* Left Panel - Output */}
@@ -311,158 +361,232 @@ export const MachineExample = () => {
           </div>
         </div>
 
-        {/* Controls Panel */}
-        <div className='bg-white rounded-lg shadow-md p-4 flex flex-col flex-1'>
-          <h2 className='text-lg font-semibold mb-2'>Query</h2>
-          <textarea
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            className='w-full flex-1 p-2 border border-gray-300 rounded-md font-mono text-sm resize-none'
-            placeholder='Enter your SQL query...'
-          />
+        {/* Catalog and Controls Panels - Side by Side */}
+        <div className='flex gap-4 flex-1'>
 
-          <div className='mb-3 mt-4' />
-          <div className='flex flex-wrap gap-2'>
-            <button
-              disabled={
-                !state.can({
-                  type: 'CONFIGURE',
-                  dbInitParams: { config: {}, logLevel: LogLevel.DEBUG, progress: () => {} },
-                  catalogConfig: {},
-                })
-              }
-              onClick={handleConfigure}
-              className={getButtonClasses(
-                'configure',
-                !state.can({
-                  type: 'CONFIGURE',
-                  dbInitParams: { config: {}, logLevel: LogLevel.DEBUG, progress: () => {} },
-                  catalogConfig: {},
-                })
-              )}
-            >
-              Configure
-            </button>
-            <button
-              disabled={!state.can({ type: 'CONNECT' })}
-              onClick={handleConnect}
-              className={getButtonClasses('connect', !state.can({ type: 'CONNECT' }))}
-            >
-              Connect
-            </button>
-            <button
-              disabled={!state.can({ type: 'DISCONNECT' })}
-              onClick={handleDisconnect}
-              className={getButtonClasses('disconnect', !state.can({ type: 'DISCONNECT' }))}
-            >
-              Disconnect
-            </button>
-            <button
-              disabled={!state.can({ type: 'RESET' })}
-              onClick={handleReset}
-              className={getButtonClasses('reset', !state.can({ type: 'RESET' }))}
-            >
-              Reset
-            </button>
-            <button
-              disabled={
-                !state.can({
-                  type: 'QUERY.EXECUTE',
-                  queryParams: {
-                    sql: query,
-                    callback: () => {},
-                    description: 'QUERY.EXECUTE',
-                    resultType: 'arrow',
-                  },
-                })
-              }
-              onClick={() => handleQueryAutoCommit()}
-              className={getButtonClasses(
-                'query.execute',
-                !state.can({
-                  type: 'QUERY.EXECUTE',
-                  queryParams: {
-                    sql: query,
-                    callback: () => {},
-                    description: 'QUERY.EXECUTE',
-                    resultType: 'arrow',
-                  },
-                })
-              )}
-            >
-              Query (auto-commit)
-            </button>
-            <button
-              disabled={!state.can({ type: 'TRANSACTION.BEGIN' })}
-              onClick={handleTransactionBegin}
-              className={getButtonClasses('transaction.begin', !state.can({ type: 'TRANSACTION.BEGIN' }))}
-            >
-              Begin Transaction
-            </button>
-            <button
-              disabled={
-                !state.can({
-                  type: 'TRANSACTION.EXECUTE',
-                  queryParams: {
-                    sql: query,
-                    callback: () => {},
-                    description: 'TRANSACTION.EXECUTE',
-                    resultType: 'arrow',
-                  },
-                })
-              }
-              onClick={handleTransactionExecute}
-              className={getButtonClasses(
-                'transaction.execute',
-                !state.can({
-                  type: 'TRANSACTION.EXECUTE',
-                  queryParams: {
-                    sql: query,
-                    callback: () => {},
-                    description: 'TRANSACTION.EXECUTE',
-                    resultType: 'arrow',
-                  },
-                })
-              )}
-            >
-              Execute
-            </button>
-            <button
-              disabled={!state.can({ type: 'TRANSACTION.COMMIT' })}
-              onClick={handleTransactionCommit}
-              className={getButtonClasses('transaction.commit', !state.can({ type: 'TRANSACTION.COMMIT' }))}
-            >
-              Commit
-            </button>
-            <button
-              disabled={!state.can({ type: 'TRANSACTION.ROLLBACK' })}
-              onClick={handleTransactionRollback}
-              className={getButtonClasses('transaction.rollback', !state.can({ type: 'TRANSACTION.ROLLBACK' }))}
-            >
-              Rollback
-            </button>
-            <button
-              disabled={!state.can({ type: 'CATALOG.SUBSCRIBE', tableName: '', callback: () => {} })}
-              onClick={handleSubscribe}
-              className={getButtonClasses(
-                'catalog.subscribe',
-                !state.can({ type: 'CATALOG.SUBSCRIBE', tableName: '', callback: () => {} })
-              )}
-            >
-              Subscribe
-            </button>
-            <button
-              disabled={!state.can({ type: 'CATALOG.UNSUBSCRIBE', tableName: '', callback: () => {} })}
-              onClick={handleUnsubscribe}
-              className={getButtonClasses(
-                'catalog.unsubscribe',
-                !state.can({ type: 'CATALOG.UNSUBSCRIBE', tableName: '', callback: () => {} })
-              )}
-            >
-              Unsubscribe
-            </button>
+
+          {/* Controls Panel */}
+          <div className='w-1/2 bg-white rounded-lg shadow-md p-4 flex flex-col'>
+            <h2 className='text-lg font-semibold mb-2'>Query</h2>
+            <textarea
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              className='w-full flex-1 p-2 border border-gray-300 rounded-md font-mono text-sm resize-none'
+              placeholder='Enter your SQL query...'
+            />
+
+            <div className='mb-3 mt-4' />
+            <div className='flex flex-wrap gap-2'>
+              <button
+                disabled={
+                  !state.can({
+                    type: 'CONFIGURE',
+                    dbInitParams: { config: {}, logLevel: LogLevel.DEBUG, progress: () => {} },
+                    catalogConfig: {},
+                  })
+                }
+                onClick={handleConfigure}
+                className={getButtonClasses(
+                  'configure',
+                  !state.can({
+                    type: 'CONFIGURE',
+                    dbInitParams: { config: {}, logLevel: LogLevel.DEBUG, progress: () => {} },
+                    catalogConfig: {},
+                  })
+                )}
+              >
+                Configure
+              </button>
+              <button
+                disabled={!state.can({ type: 'CONNECT' })}
+                onClick={handleConnect}
+                className={getButtonClasses('connect', !state.can({ type: 'CONNECT' }))}
+              >
+                Connect
+              </button>
+              <button
+                disabled={!state.can({ type: 'DISCONNECT' })}
+                onClick={handleDisconnect}
+                className={getButtonClasses('disconnect', !state.can({ type: 'DISCONNECT' }))}
+              >
+                Disconnect
+              </button>
+              <button
+                disabled={!state.can({ type: 'RESET' })}
+                onClick={handleReset}
+                className={getButtonClasses('reset', !state.can({ type: 'RESET' }))}
+              >
+                Reset
+              </button>
+              <button
+                disabled={
+                  !state.can({
+                    type: 'QUERY.EXECUTE',
+                    queryParams: {
+                      sql: query,
+                      callback: () => {},
+                      description: 'QUERY.EXECUTE',
+                      resultType: 'arrow',
+                    },
+                  })
+                }
+                onClick={() => handleQueryAutoCommit()}
+                className={getButtonClasses(
+                  'query.execute',
+                  !state.can({
+                    type: 'QUERY.EXECUTE',
+                    queryParams: {
+                      sql: query,
+                      callback: () => {},
+                      description: 'QUERY.EXECUTE',
+                      resultType: 'arrow',
+                    },
+                  })
+                )}
+              >
+                Query (auto-commit)
+              </button>
+              <button
+                disabled={!state.can({ type: 'TRANSACTION.BEGIN' })}
+                onClick={handleTransactionBegin}
+                className={getButtonClasses('transaction.begin', !state.can({ type: 'TRANSACTION.BEGIN' }))}
+              >
+                Begin Transaction
+              </button>
+              <button
+                disabled={
+                  !state.can({
+                    type: 'TRANSACTION.EXECUTE',
+                    queryParams: {
+                      sql: query,
+                      callback: () => {},
+                      description: 'TRANSACTION.EXECUTE',
+                      resultType: 'arrow',
+                    },
+                  })
+                }
+                onClick={handleTransactionExecute}
+                className={getButtonClasses(
+                  'transaction.execute',
+                  !state.can({
+                    type: 'TRANSACTION.EXECUTE',
+                    queryParams: {
+                      sql: query,
+                      callback: () => {},
+                      description: 'TRANSACTION.EXECUTE',
+                      resultType: 'arrow',
+                    },
+                  })
+                )}
+              >
+                Execute
+              </button>
+              <button
+                disabled={!state.can({ type: 'TRANSACTION.COMMIT' })}
+                onClick={handleTransactionCommit}
+                className={getButtonClasses('transaction.commit', !state.can({ type: 'TRANSACTION.COMMIT' }))}
+              >
+                Commit
+              </button>
+              <button
+                disabled={!state.can({ type: 'TRANSACTION.ROLLBACK' })}
+                onClick={handleTransactionRollback}
+                className={getButtonClasses('transaction.rollback', !state.can({ type: 'TRANSACTION.ROLLBACK' }))}
+              >
+                Rollback
+              </button>
+              <button
+                disabled={!state.can({ type: 'CATALOG.SUBSCRIBE', tableName: '', callback: () => {} })}
+                onClick={handleSubscribe}
+                className={getButtonClasses(
+                  'catalog.subscribe',
+                  !state.can({ type: 'CATALOG.SUBSCRIBE', tableName: '', callback: () => {} })
+                )}
+              >
+                Subscribe
+              </button>
+              <button
+                disabled={!state.can({ type: 'CATALOG.UNSUBSCRIBE', tableName: '', callback: () => {} })}
+                onClick={handleUnsubscribe}
+                className={getButtonClasses(
+                  'catalog.unsubscribe',
+                  !state.can({ type: 'CATALOG.UNSUBSCRIBE', tableName: '', callback: () => {} })
+                )}
+              >
+                Unsubscribe
+              </button>
+            </div>
+          </div>
+
+          {/* Catalog Panel */}
+          <div className='w-1/2 bg-white rounded-lg shadow-md p-4 flex flex-col'>
+            <h2 className='text-lg font-semibold mb-2'>Catalog & Table Management</h2>
+            <div className='grid grid-cols-2 gap-4 mb-4'>
+              <div>
+                <label className='block text-sm font-medium text-gray-700 mb-1'>Table Name</label>
+                <input
+                  type='text'
+                  value={tableName}
+                  onChange={e => setTableName(e.target.value)}
+                  className='w-full p-2 border border-gray-300 rounded-md text-sm'
+                  placeholder='Enter table name...'
+                />
+              </div>
+              <div>
+                <label className='block text-sm font-medium text-gray-700 mb-1'>Table Type</label>
+                <select
+                  value={tableType}
+                  onChange={e => setTableType(e.target.value as 'arrow' | 'json')}
+                  className='w-full p-2 border border-gray-300 rounded-md text-sm'
+                >
+                  <option value='arrow'>Arrow</option>
+                  <option value='json'>JSON</option>
+                </select>
+              </div>
+            </div>
+            <div className='flex-1 flex flex-col min-h-0'>
+              <label className='block text-sm font-medium text-gray-700 mb-1'>Payload</label>
+              <textarea
+                value={tablePayload}
+                onChange={e => setTablePayload(e.target.value)}
+                className='w-full flex-1 p-2 border border-gray-300 rounded-md text-sm resize-none'
+                placeholder={tableType === 'json' ? 'Enter JSON payload...' : 'Enter base64 Arrow data...'}
+              />
+            </div>
+            <div className='flex flex-wrap gap-2 mt-4'>
+              <button
+                disabled={!state.can({ type: 'CATALOG.LIST_TABLES' })}
+                onClick={handleListTables}
+                className={getButtonClasses('catalog.listTables', !state.can({ type: 'CATALOG.LIST_TABLES' }))}
+              >
+                List Tables
+              </button>
+              <button
+                disabled={!state.can({ type: 'CATALOG.LOAD_TABLE_FROM_DATA', table: {}, payload: {} })}
+                onClick={handleLoadTableFromData}
+                className={getButtonClasses('catalog.loadTableFromData', !state.can({ type: 'CATALOG.LOAD_TABLE_FROM_DATA', table: {}, payload: {} }))}
+              >
+                Load Table
+              </button>
+              <button
+                disabled={!state.can({ type: 'CATALOG.DROP_TABLE', tableName: '' })}
+                onClick={handleDropTable}
+                className={getButtonClasses('catalog.dropTable', !state.can({ type: 'CATALOG.DROP_TABLE', tableName: '' }))}
+              >
+                Drop Table
+              </button>
+              <button
+                disabled={!state.can({ type: 'CATALOG.GET_TABLE_METADATA', tableName: '' })}
+                onClick={handleGetTableMetadata}
+                className={getButtonClasses('catalog.getTableMetadata', !state.can({ type: 'CATALOG.GET_TABLE_METADATA', tableName: '' }))}
+              >
+                Get Metadata
+              </button>
+            </div>
           </div>
         </div>
+
+        
       </div>
 
       {/* Right Sidepanel - Machine State */}
