@@ -9,7 +9,6 @@ type JSONValue =
 
 export type JSONObject = Record<string, JSONValue>
 
-
 export interface TableDefinition {
   schema: string
   name: string
@@ -18,15 +17,12 @@ export interface TableDefinition {
   // loader: (payload: any) => Promise<Table<any>>
 }
 
-
-
 export interface LoadedTableEntry {
   id: number
   tableSpecName: string
   tableInstanceName: string
   loadedEpoch: number
 }
-
 
 export const DUCKDB_TABLE: Record<string, TableDefinition> = {
   catalog: {

@@ -21,7 +21,14 @@ type ExternalEvents =
 
   // these events are used to load data and delete tables
   | { type: 'CATALOG.LIST_TABLES'; callback: (tables: LoadedTableEntry[]) => void }
-  | { type: 'CATALOG.LOAD_TABLE'; tableName: string; tablePayload: any; payloadType: 'json' | 'b64ipc', payloadCompression: 'none' | 'zlib', callback?: (tableInstanceName: string, error?: string) => void }
+  | {
+      type: 'CATALOG.LOAD_TABLE'
+      tableName: string
+      tablePayload: any
+      payloadType: 'json' | 'b64ipc'
+      payloadCompression: 'none' | 'zlib'
+      callback?: (tableInstanceName: string, error?: string) => void
+    }
   | { type: 'CATALOG.DROP_TABLE'; tableName: string }
   | { type: 'CATALOG.GET_CONFIGURATION'; callback: (config: TableDefinition[]) => void }
 
@@ -96,7 +103,7 @@ export const dbCatalogLogic = setup({
           target: 'loading_table',
           actions: assign({
             duckDbHandle: ({ event }: any) => event.duckDbHandle,
-          })
+          }),
         },
 
         'CATALOG.DROP_TABLE': {
@@ -147,7 +154,14 @@ export const dbCatalogLogic = setup({
     loading_table: {
       invoke: {
         src: 'loadTableIntoDuckDb',
-        input: ({ event, context }: any) => { return { ...event, nextTableId: context.nextTableId, definitions: context.definitions, duckDbHandle: context.duckDbHandle } },
+        input: ({ event, context }: any) => {
+          return {
+            ...event,
+            nextTableId: context.nextTableId,
+            definitions: context.definitions,
+            duckDbHandle: context.duckDbHandle,
+          }
+        },
         onDone: {
           target: 'pruning_versions',
           actions: assign(({ event, context }) => ({
@@ -166,8 +180,14 @@ export const dbCatalogLogic = setup({
     pruning_versions: {
       invoke: {
         src: 'pruneTableVersions',
-        input: ({ event, context }: any) => { 
-          return { ...event, currentLoadedVersions: context.loadedVersions, definitions: context.definitions, duckDbHandle: context.duckDbHandle } },
+        input: ({ event, context }: any) => {
+          return {
+            ...event,
+            currentLoadedVersions: context.loadedVersions,
+            definitions: context.definitions,
+            duckDbHandle: context.duckDbHandle,
+          }
+        },
         onDone: {
           target: 'connected',
           actions: assign(({ event }) => ({
