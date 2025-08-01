@@ -6,7 +6,7 @@ import { AsyncDuckDB } from '@duckdb/duckdb-wasm'
 export interface Context {
   definitions: TableDefinition[]
   loadedVersions: Array<LoadedTableEntry>
-  subscriptions: Record<string, Set<() => void>>
+  subscriptions: Record<string, Set<(tableInstanceName: string, id: number) => void>>
   nextTableId: number
   duckDbHandle: AsyncDuckDB | null
   error?: string
@@ -127,27 +127,44 @@ export const dbCatalogLogic = setup({
         },
 
         'CATALOG.SUBSCRIBE': {
-          //   actions: assign(({ context, event }) => {
-          //     const subs = context.subscriptions[event.tableName] ?? new Set()
-          //     subs.add(event.callback)
-          //     return {
-          //       subscriptions: { ...context.subscriptions, [event.tableName]: subs },
-          //     }
-          //   }),
+          actions: assign(({ context, event }) => {
+            const subs = context.subscriptions[event.tableSpecName] ?? new Set()
+            subs.add(event.callback)
+            return {
+              subscriptions: { ...context.subscriptions, [event.tableSpecName]: subs },
+            }
+          }),
         },
 
         'CATALOG.UNSUBSCRIBE': {
-          //   actions: assign(({ context, event }) => {
-          //     const subs = context.subscriptions[event.tableName]
-          //     subs?.delete(event.callback)
-          //     return context
-          //   }),
+          actions: assign(({ context, event }) => {
+            const subs = context.subscriptions[event.tableSpecName]
+            if (subs) {
+              subs.delete(event.callback)
+              if (subs.size === 0) {
+                const newSubscriptions = { ...context.subscriptions }
+                delete newSubscriptions[event.tableSpecName]
+                return { subscriptions: newSubscriptions }
+              }
+            }
+            return context
+          }),
         },
 
         'CATALOG.FORCE_NOTIFY': {
-          //   actions: ({ context, event }) => {
-          //     context.subscriptions[event.tableName]?.forEach(cb => cb())
-          //   },
+          actions: ({ context, event }) => {
+            const subs = context.subscriptions[event.tableSpecName]
+            if (subs) {
+              // Find the most recent version of this table
+              const latestTable = context.loadedVersions
+                .filter(entry => entry.tableSpecName === event.tableSpecName)
+                .sort((a, b) => b.id - a.id)[0]
+              
+              if (latestTable) {
+                subs.forEach(callback => callback(latestTable.tableInstanceName, latestTable.id))
+              }
+            }
+          },
         },
       },
     },
@@ -164,10 +181,21 @@ export const dbCatalogLogic = setup({
         },
         onDone: {
           target: 'pruning_versions',
-          actions: assign(({ event, context }) => ({
-            nextTableId: context.nextTableId + 1,
-            loadedVersions: [event.output as LoadedTableEntry, ...context.loadedVersions],
-          })),
+          actions: assign(({ event, context }) => {
+            const newLoadedVersions = [event.output as LoadedTableEntry, ...context.loadedVersions]
+            
+            // Notify subscribers about the new table
+            const newTable = event.output as LoadedTableEntry
+            const subs = context.subscriptions[newTable.tableSpecName]
+            if (subs) {
+              subs.forEach(callback => callback(newTable.tableInstanceName, newTable.id))
+            }
+            
+            return {
+              nextTableId: context.nextTableId + 1,
+              loadedVersions: newLoadedVersions,
+            }
+          }),
         },
         onError: {
           target: 'error',

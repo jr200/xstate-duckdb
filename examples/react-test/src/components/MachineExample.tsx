@@ -12,6 +12,7 @@ import { DuckDBConfig, InstantiationProgress, LogLevel } from '@duckdb/duckdb-wa
 import { DisplayOutputResult } from './types'
 import { ProgressBar } from './ProgressBar'
 import { getButtonClasses, getTypeStyles } from './styles'
+import payloadContent from '/payload.b64ipc_zlib.txt?raw'
 
 export const MachineExample = () => {
   const [state, send, actor] = useActor(duckdbMachine)
@@ -36,7 +37,7 @@ export const MachineExample = () => {
   // New state for catalog panel
   const [tableName, setTableName] = useState('test_table')
   const [tableType, setTableType] = useState<'b64ipc' | 'json'>('b64ipc')
-  const [tablePayload, setTablePayload] = useState('')
+  const [tablePayload, setTablePayload] = useState(payloadContent)
 
   // New state for initialization progress
   const [initProgress, setInitProgress] = useState<InstantiationProgress | null>(null)
@@ -429,9 +430,9 @@ export const MachineExample = () => {
                 placeholder={tableType === 'json' ? 'Enter JSON payload...' : 'Enter base64 Arrow data...'}
               />
             </div>
-            
+
             <div className='flex flex-wrap gap-2 mt-4'>
-            <button
+              <button
                 disabled={!state.can({ type: 'CATALOG.LIST_DEFINITIONS', callback: () => {} })}
                 onClick={handleShowConfiguration}
                 className={getButtonClasses(
