@@ -200,10 +200,10 @@ export const MachineExample = () => {
         <div className='flex items-center justify-between mb-4'>
           <h2 className='text-lg font-semibold'>Output</h2>
           <div className='flex gap-2'>
-            <DbShell db={state.context.duckDbHandle}/>
+            <DbShell db={state.context.duckDbHandle} />
             <button onClick={clearOutput} className={getButtonClasses('clear')}>
-            Clear
-          </button>
+              Clear
+            </button>
           </div>
         </div>
         <div className='bg-gray-50 border border-gray-300 rounded-md p-3 flex-1 overflow-y-auto'>

@@ -11,7 +11,7 @@ import { closeDuckDb, initDuckDb } from '../actors/dbInit'
 import { beginTransaction, commitTransaction, rollbackTransaction, QueryDbParams, queryDuckDb } from '../actors/dbQuery'
 import { dbCatalogLogic, Events as DbCatalogEvents } from './dbCatalog'
 
-interface Context {
+export interface Context {
   duckDbHandle: AsyncDuckDB | null
   duckDbVersion: string | null
   dbInitParams: DuckDBConfig | null
@@ -19,7 +19,7 @@ interface Context {
   transactionConnection: AsyncDuckDBConnection | null
 }
 
-type Events =
+export type Events =
   | { type: 'CONNECT'; dbProgressHandler: InstantiationProgressHandler | null }
   | { type: 'CONFIGURE'; config: MachineConfig }
   | { type: 'RECONNECT' }
