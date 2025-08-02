@@ -10,23 +10,26 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@duckdb/duckdb-wasm-shell": "1.29.1-dev132.0",
+    "@jr200/xstate-duckdb": "workspace:*",
     "@statelyai/inspect": "^0.4.0",
     "@xstate/react": "^6.0.0",
+    "@xterm/xterm": "^5.5.0",
     "js-yaml": "^4.1.0",
     "pretty-format": "^30.0.5",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "xstate": "^5.20.1",
-    "@jr200/xstate-duckdb": "workspace:*"
+    "xstate": "^5.20.1"
   },
   "devDependencies": {
-    "@types/react": "^19.1.1",
-    "@types/react-dom": "^19.1.1",
-    "@vitejs/plugin-react": "^4.3.1",
+    "@types/react": "^19.1.9",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.8.3",
-    "vite": "^5.4.1"
+    "typescript": "^5.9.2",
+    "vite": "^5.4.19",
+    "vite-plugin-wasm": "^3.5.0"
   }
 }
