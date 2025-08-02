@@ -9,6 +9,7 @@ import payloadContent from '/payload.b64ipc_zlib.txt?raw'
 import configContent from '/config_yaml.txt?raw'
 import yaml from 'js-yaml'
 import { format as prettyFormat } from 'pretty-format'
+import DbShell from './DuckDbShell'
 
 export const MachineExample = () => {
   const [state, send, actor] = useActor(duckdbMachine)
@@ -198,9 +199,12 @@ export const MachineExample = () => {
       <div className='w-1/3 bg-white shadow-lg border-r border-gray-200 p-4 flex flex-col'>
         <div className='flex items-center justify-between mb-4'>
           <h2 className='text-lg font-semibold'>Output</h2>
-          <button onClick={clearOutput} className={getButtonClasses('clear')}>
+          <div className='flex gap-2'>
+            <DbShell db={state.context.duckDbHandle}/>
+            <button onClick={clearOutput} className={getButtonClasses('clear')}>
             Clear
           </button>
+          </div>
         </div>
         <div className='bg-gray-50 border border-gray-300 rounded-md p-3 flex-1 overflow-y-auto'>
           {outputs.length === 0 ? (
