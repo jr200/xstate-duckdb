@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { duckdbMachine, LoadedTableEntry, MachineConfig, QueryDbParams, TableDefinition } from 'xstate-duckdb'
+import { duckdbMachine, LoadedTableEntry, MachineConfig, QueryDbParams, TableDefinition } from '@jr200/xstate-duckdb'
 import { useActor, useSelector } from '@xstate/react'
 import { InstantiationProgress, LogLevel } from '@duckdb/duckdb-wasm'
 import { DisplayOutputResult } from './types'

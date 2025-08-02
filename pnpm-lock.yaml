@@ -57,6 +57,9 @@ importers:
 
   examples/react-test:
     dependencies:
+      '@jr200/xstate-duckdb':
+        specifier: workspace:*
+        version: link:../..
       '@statelyai/inspect':
         specifier: ^0.4.0
         version: 0.4.0(ws@8.18.3)(xstate@5.20.1)
@@ -78,9 +81,6 @@ importers:
       xstate:
         specifier: ^5.20.1
         version: 5.20.1
-      xstate-duckdb:
-        specifier: workspace:*
-        version: link:../..
     devDependencies:
       '@types/react':
         specifier: ^19.1.1

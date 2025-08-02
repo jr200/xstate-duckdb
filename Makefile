@@ -24,6 +24,8 @@ clean:
 install:
 	pnpm install
 
+test:
+	pnpm run test:run
 
 example-react-test: build
 	cd examples/react-test && pnpm install && pnpm run dev
