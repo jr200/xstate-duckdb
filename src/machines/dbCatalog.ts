@@ -8,7 +8,7 @@ export interface Context {
   loadedVersions: Array<LoadedTableEntry>
   subscriptions: Map<string, CatalogSubscription>
   nextTableId: number
-  duckDbHandle: AsyncDuckDB | null
+  cachedDuckDbHandle: AsyncDuckDB | null
   error?: string
 }
 
@@ -62,7 +62,7 @@ export const dbCatalogLogic = setup({
     loadedVersions: [],
     subscriptions: new Map<string, CatalogSubscription>(),
     nextTableId: 1,
-    duckDbHandle: null,
+    cachedDuckDbHandle: null,
   },
 
   states: {
@@ -108,7 +108,7 @@ export const dbCatalogLogic = setup({
         'CATALOG.LOAD_TABLE': {
           target: 'loading_table',
           actions: assign({
-            duckDbHandle: ({ event }: any) => event.duckDbHandle,
+            cachedDuckDbHandle: ({ event }: any) => event.duckDbHandle,
           }),
         },
 
@@ -180,7 +180,7 @@ export const dbCatalogLogic = setup({
             ...event,
             nextTableId: context.nextTableId,
             tableDefinitions: context.tableDefinitions,
-            duckDbHandle: context.duckDbHandle,
+            duckDbHandle: context.cachedDuckDbHandle,
           }
         },
         onDone: {
@@ -219,21 +219,21 @@ export const dbCatalogLogic = setup({
             ...event,
             currentLoadedVersions: context.loadedVersions,
             tableDefinitions: context.tableDefinitions,
-            duckDbHandle: context.duckDbHandle,
+            duckDbHandle: context.cachedDuckDbHandle,
           }
         },
         onDone: {
           target: 'connected',
           actions: assign(({ event }) => ({
             loadedVersions: event.output.loadedVersions,
-            duckDbHandle: null,
+            cachedDuckDbHandle: null,
           })),
         },
         onError: {
           target: 'error',
           actions: assign({
             nextTableId: ({ context }: any) => context.nextTableId + 1,
-            duckDbHandle: null,
+            cachedDuckDbHandle: null,
             error: ({ event }: any) => event,
           }),
         },
