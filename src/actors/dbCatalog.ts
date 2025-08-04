@@ -14,14 +14,15 @@ export interface LoadTableInput {
 export const loadTableIntoDuckDb = fromPromise(async ({ input }: any) => {
   try {
     const { nextTableId, payloadType, tableDefinitions, payloadCompression } = input
-    const tableDefinition = findTableDefinition(input.tableName, tableDefinitions)
+    const tableDefinition = findTableDefinition(input.tableSpecName, tableDefinitions)
     if (!tableDefinition) {
-      input.callback?.({ error: `Table definition for table ${input.tableName} not found` })
+      input.callback?.({ error: `Table definition for table ${input.tableSpecName} not found` })
       return
     }
 
     const tableNameInstance = makeTableNameInstance(tableDefinition, nextTableId)
     const catalogEntry: LoadedTableEntry = {
+      tableIsVersioned: tableDefinition.isVersioned,
       tableVersionId: nextTableId,
       tableSpecName: tableDefinition.name,
       tableInstanceName: tableNameInstance,
@@ -32,6 +33,7 @@ export const loadTableIntoDuckDb = fromPromise(async ({ input }: any) => {
     const dbConnection = await input.duckDbHandle.connect()
     if (payloadType === 'json') {
       result = await loadTableFromJson(
+        tableDefinition.isVersioned,
         tableDefinition.schema,
         tableNameInstance,
         input.tablePayload,
@@ -40,6 +42,7 @@ export const loadTableIntoDuckDb = fromPromise(async ({ input }: any) => {
       )
     } else if (payloadType === 'b64ipc') {
       result = await loadTableFromB64ipc(
+        tableDefinition.isVersioned,
         tableDefinition.schema,
         tableNameInstance,
         input.tablePayload,
@@ -59,35 +62,37 @@ export const loadTableIntoDuckDb = fromPromise(async ({ input }: any) => {
   }
 })
 
-function findTableDefinition(tableName: string, definitions: TableDefinition[]) {
-  return definitions.find(def => def.name === tableName)
+function findTableDefinition(tableSpecName: string, definitions: TableDefinition[]) {
+  return definitions.find(def => def.name === tableSpecName)
 }
 
 function makeTableNameInstance(definition: TableDefinition, nextTableId: number): string {
-  if (definition.isVersioned && nextTableId) {
+  if (definition.isVersioned) {
     return `${definition.name}_${nextTableId}`
   }
   return definition.name
 }
 async function loadTableFromJson(
+  tableIsVersioned: boolean,
   tableSchema: string,
   tableName: string,
   jsonPayload: JSONObject,
   dbConnection: AsyncDuckDBConnection,
   compression: 'none' | 'zlib'
 ): Promise<any> {
-  console.log('loadTableFromJson', tableName, jsonPayload)
+  console.log('loadTableFromJson', tableName, jsonPayload, tableIsVersioned)
   return { tableSchema, tableName, dbConnection, compression, jsonPayload }
 }
 
 async function loadTableFromB64ipc(
+  tableIsVersioned: boolean,
   tableSchema: string,
   tableName: string,
   base64ipc: string,
   connection: AsyncDuckDBConnection,
   compression: 'none' | 'zlib'
 ): Promise<any> {
-  const msgSizeMb = base64ipc.length / 1024 / 1024
+  // const msgSizeMb = base64ipc.length / 1024 / 1024
 
   const binaryString = window.atob(base64ipc)
   const byteArray = new Uint8Array(binaryString.length)
@@ -99,18 +104,22 @@ async function loadTableFromB64ipc(
   const finalByteArray = compression === 'zlib' ? pako.inflate(byteArray) : byteArray
 
   try {
+    if (!tableIsVersioned) {
+      await connection.query(`DROP TABLE IF EXISTS ${tableName};`)
+    }
+
     await connection.insertArrowFromIPCStream(finalByteArray, {
       name: tableName,
       schema: tableSchema,
       create: true,
     })
+
   } catch (error: any) {
     console.error('Error loading table from b64ipc', error)
-    return { error: error }
+    return { result: 'error', error: error }
   }
-  console.log(`DuckDB loaded ${tableSchema}.${tableName}: size=${msgSizeMb.toFixed(3)}mb`)
 
-  return { tableName, connection, compression, base64ipc }
+  return { result: 'ok', error: null }
 }
 
 export const pruneTableVersions = fromPromise(async ({ input }: any) => {
@@ -122,14 +131,12 @@ export const pruneTableVersions = fromPromise(async ({ input }: any) => {
   try {
     let prunedLoadedVersions: LoadedTableEntry[] = []
     for (const definition of definitions) {
-      const { maxVersions, isVersioned, name } = definition
+      const { isVersioned, name, maxVersions } = definition
       const loadedTables = currentLoadedVersions
         .filter(loadedTbl => loadedTbl.tableSpecName === name)
         .sort((a, b) => b.tableVersionId - a.tableVersionId)
 
-      if (!isVersioned) {
-        prunedLoadedVersions = [...prunedLoadedVersions, ...loadedTables]
-      } else {
+      if (isVersioned) {
         const versionsToKeep = loadedTables.slice(0, maxVersions)
         const tableInstancesToPrune = loadedTables.slice(maxVersions).map(tbl => tbl.tableInstanceName)
         await dropTables(tableInstancesToPrune, dbConnection)

@@ -3,13 +3,26 @@ import { TableDefinition, LoadedTableEntry, CatalogSubscription } from '../lib/t
 import { loadTableIntoDuckDb, pruneTableVersions } from '../actors/dbCatalog'
 import { AsyncDuckDB } from '@duckdb/duckdb-wasm'
 
+export interface TableLoadEvent {
+  tableSpecName: string
+  tablePayload: any
+  payloadType: 'json' | 'b64ipc'
+  payloadCompression: 'none' | 'zlib'
+  callback?: (tableInstanceName: string, error?: string) => void
+}
+
+export interface TableLoadEventInternal extends TableLoadEvent {
+  duckDbHandle: AsyncDuckDB | null
+}
+
 export interface Context {
   tableDefinitions: TableDefinition[]
   loadedVersions: Array<LoadedTableEntry>
   subscriptions: Map<string, CatalogSubscription>
   nextTableId: number
-  cachedDuckDbHandle: AsyncDuckDB | null
   error?: string
+  pendingTableLoads: TableLoadEventInternal[]
+  currentTableLoad: TableLoadEventInternal | null
 }
 
 type ExternalEvents =
@@ -23,11 +36,7 @@ type ExternalEvents =
   | { type: 'CATALOG.LIST_TABLES'; callback: (tables: LoadedTableEntry[]) => void }
   | {
       type: 'CATALOG.LOAD_TABLE'
-      tableName: string
-      tablePayload: any
-      payloadType: 'json' | 'b64ipc'
-      payloadCompression: 'none' | 'zlib'
-      callback?: (tableInstanceName: string, error?: string) => void
+      data: TableLoadEvent
     }
   | { type: 'CATALOG.DROP_TABLE'; tableName: string }
   | { type: 'CATALOG.LIST_DEFINITIONS'; callback: (config: TableDefinition[]) => void }
@@ -54,6 +63,11 @@ export const dbCatalogLogic = setup({
     loadTableIntoDuckDb: loadTableIntoDuckDb,
     pruneTableVersions: pruneTableVersions,
   },
+  guards: {
+    hasPendingTableLoads: ({ context }) => {
+      return context.pendingTableLoads.length > 0
+    },
+  },
 }).createMachine({
   initial: 'idle',
 
@@ -62,7 +76,52 @@ export const dbCatalogLogic = setup({
     loadedVersions: [],
     subscriptions: new Map<string, CatalogSubscription>(),
     nextTableId: 1,
-    cachedDuckDbHandle: null,
+    pendingTableLoads: [],
+    currentTableLoad: null,
+  },
+
+  on: {
+    'CATALOG.SUBSCRIBE': {
+      actions: assign(({ context, event }) => {
+        const { subscription } = event
+        const subscriptionKey = subscription.subscriptionUid ?? subscription.tableSpecName
+        const newSubscriptions = new Map(context.subscriptions)
+        newSubscriptions.set(subscriptionKey, {
+          ...subscription,
+          subscriptionUid: subscriptionKey,
+        })
+        return {
+          subscriptions: newSubscriptions,
+        }
+      }),
+    },
+
+    'CATALOG.UNSUBSCRIBE': {
+      actions: assign(({ context, event }) => {
+        const newSubscriptions = new Map(context.subscriptions)
+        newSubscriptions.delete(event.id)
+        return { subscriptions: newSubscriptions }
+      }),
+    },
+
+    'CATALOG.LOAD_TABLE': {
+      actions: assign(({ context, event }) => {
+        const eventWithDbHandle = {
+          ...event.data,
+          duckDbHandle: (event as any).duckDbHandle,
+        }
+        const newPendingTableLoads = [...context.pendingTableLoads, eventWithDbHandle]
+        return {
+          pendingTableLoads: newPendingTableLoads,
+        }
+      }),
+    },
+
+    'CATALOG.LIST_DEFINITIONS': {
+      actions: ({ context, event }) => {
+        event.callback(context.tableDefinitions)
+      },
+    },
   },
 
   states: {
@@ -87,6 +146,8 @@ export const dbCatalogLogic = setup({
             config: [],
             loadedVersions: [],
             subscriptions: new Map<string, CatalogSubscription>(),
+            pendingTableLoads: [],
+            currentTableLoad: null,
             // shoudl we reset this?? nextTableId: 1,
           })),
         },
@@ -96,6 +157,10 @@ export const dbCatalogLogic = setup({
       },
     },
     connected: {
+      always: {
+        target: 'loading_table',
+        guard: 'hasPendingTableLoads',
+      },
       on: {
         'CATALOG.DISCONNECT': {
           target: 'configured',
@@ -105,13 +170,6 @@ export const dbCatalogLogic = setup({
             event.callback(context.loadedVersions)
           },
         },
-        'CATALOG.LOAD_TABLE': {
-          target: 'loading_table',
-          actions: assign({
-            cachedDuckDbHandle: ({ event }: any) => event.duckDbHandle,
-          }),
-        },
-
         'CATALOG.DROP_TABLE': {
           //   actions: fromPromise(async ({ context, event }) => {
           //     const { tableName } = event
@@ -126,35 +184,6 @@ export const dbCatalogLogic = setup({
           //   }),
         },
 
-        'CATALOG.LIST_DEFINITIONS': {
-          actions: ({ context, event }) => {
-            event.callback(context.tableDefinitions)
-          },
-        },
-
-        'CATALOG.SUBSCRIBE': {
-          actions: assign(({ context, event }) => {
-            const { subscription } = event
-            const subscriptionKey = subscription.subscriptionUid ?? subscription.tableSpecName
-            const newSubscriptions = new Map(context.subscriptions)
-            newSubscriptions.set(subscriptionKey, {
-              ...subscription,
-              subscriptionUid: subscriptionKey,
-            })
-            return {
-              subscriptions: newSubscriptions,
-            }
-          }),
-        },
-
-        'CATALOG.UNSUBSCRIBE': {
-          actions: assign(({ context, event }) => {
-            const newSubscriptions = new Map(context.subscriptions)
-            newSubscriptions.delete(event.id)
-            return { subscriptions: newSubscriptions }
-          }),
-        },
-
         'CATALOG.FORCE_NOTIFY': {
           actions: ({ context, event }) => {
             const foundSub = context.subscriptions.get(event.id)
@@ -165,7 +194,11 @@ export const dbCatalogLogic = setup({
                 .sort((a, b) => b.tableVersionId - a.tableVersionId)[0]
 
               if (latestTable) {
-                foundSub.onChange(latestTable.tableInstanceName, latestTable.tableVersionId)
+                foundSub.onChange(
+                  latestTable.tableInstanceName,
+                  latestTable.tableVersionId,
+                  latestTable.tableIsVersioned
+                )
               }
             }
           },
@@ -173,14 +206,21 @@ export const dbCatalogLogic = setup({
       },
     },
     loading_table: {
+      entry: assign(({ context }) => {
+        // Read the first item off the queue
+        const [firstItem, ...remainingItems] = context.pendingTableLoads
+        return {
+          pendingTableLoads: remainingItems,
+          currentTableLoad: firstItem,
+        }
+      }),
       invoke: {
         src: 'loadTableIntoDuckDb',
-        input: ({ event, context }: any) => {
+        input: ({ context }: any) => {
           return {
-            ...event,
+            ...context.currentTableLoad,
             nextTableId: context.nextTableId,
             tableDefinitions: context.tableDefinitions,
-            duckDbHandle: context.cachedDuckDbHandle,
           }
         },
         onDone: {
@@ -192,7 +232,11 @@ export const dbCatalogLogic = setup({
             // Notify subscribers about the new table
             for (const [_, subscription] of context.subscriptions.entries()) {
               if (subscription.tableSpecName === loadedTable.tableSpecName) {
-                subscription.onChange(loadedTable.tableInstanceName, loadedTable.tableVersionId)
+                subscription.onChange(
+                  loadedTable.tableInstanceName,
+                  loadedTable.tableVersionId,
+                  loadedTable.tableIsVersioned
+                )
               }
             }
 
@@ -207,6 +251,7 @@ export const dbCatalogLogic = setup({
           actions: assign({
             nextTableId: ({ context }: any) => context.nextTableId + 1,
             error: ({ event }: any) => event.error.message,
+            currentTableLoad: null,
           }),
         },
       },
@@ -219,22 +264,22 @@ export const dbCatalogLogic = setup({
             ...event,
             currentLoadedVersions: context.loadedVersions,
             tableDefinitions: context.tableDefinitions,
-            duckDbHandle: context.cachedDuckDbHandle,
+            duckDbHandle: context.currentTableLoad?.duckDbHandle,
           }
         },
         onDone: {
           target: 'connected',
           actions: assign(({ event }) => ({
             loadedVersions: event.output.loadedVersions,
-            cachedDuckDbHandle: null,
+            currentTableLoad: null,
           })),
         },
         onError: {
           target: 'error',
           actions: assign({
             nextTableId: ({ context }: any) => context.nextTableId + 1,
-            cachedDuckDbHandle: null,
             error: ({ event }: any) => event,
+            currentTableLoad: null,
           }),
         },
       },

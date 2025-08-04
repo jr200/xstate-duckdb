@@ -1,5 +1,12 @@
 import React, { useState } from 'react'
-import { duckdbMachine, LoadedTableEntry, MachineConfig, QueryDbParams, TableDefinition } from '@jr200/xstate-duckdb'
+import {
+  DuckDbInitialistionStatus,
+  duckdbMachine,
+  LoadedTableEntry,
+  MachineConfig,
+  QueryDbParams,
+  TableDefinition,
+} from '@jr200/xstate-duckdb'
 import { useActor, useSelector } from '@xstate/react'
 import { InstantiationProgress, LogLevel } from '@duckdb/duckdb-wasm'
 import { DisplayOutputResult } from './types'
@@ -61,7 +68,13 @@ export const MachineExample = () => {
       setInitProgress(progress)
     }
 
-    send({ type: 'CONNECT', dbProgressHandler: dbProgressHandler })
+    send({
+      type: 'CONNECT',
+      dbProgressHandler: dbProgressHandler,
+      statusHandler: (status: DuckDbInitialistionStatus) => {
+        addOutput('connect', `Connect command sent: ${status}`)
+      },
+    })
     addOutput('connect', 'Connect command sent')
   }
 
@@ -165,12 +178,14 @@ export const MachineExample = () => {
 
       send({
         type: 'CATALOG.LOAD_TABLE',
-        tableName: tableName,
-        tablePayload: payload,
-        payloadType: tableType,
-        payloadCompression: 'zlib',
-        callback: (tableInstanceName: string, error?: string) => {
-          addOutput('catalog.load_table', { tableInstanceName, error })
+        data: {
+          tableSpecName: tableName,
+          tablePayload: payload,
+          payloadType: tableType,
+          payloadCompression: 'zlib',
+          callback: (tableInstanceName: string, error?: string) => {
+            addOutput('catalog.load_table', { tableInstanceName, error })
+          },
         },
       })
     } catch (error) {
@@ -284,9 +299,12 @@ export const MachineExample = () => {
                   Configure
                 </button>
                 <button
-                  disabled={!state.can({ type: 'CONNECT', dbProgressHandler: null })}
+                  disabled={!state.can({ type: 'CONNECT', dbProgressHandler: null, statusHandler: null })}
                   onClick={handleConnect}
-                  className={getButtonClasses('connect', !state.can({ type: 'CONNECT', dbProgressHandler: null }))}
+                  className={getButtonClasses(
+                    'connect',
+                    !state.can({ type: 'CONNECT', dbProgressHandler: null, statusHandler: null })
+                  )}
                 >
                   Connect
                 </button>
@@ -476,10 +494,12 @@ export const MachineExample = () => {
                 disabled={
                   !state.can({
                     type: 'CATALOG.LOAD_TABLE',
-                    tableName: '',
-                    tablePayload: '',
-                    payloadType: 'b64ipc',
-                    payloadCompression: 'none',
+                    data: {
+                      tableSpecName: '',
+                      tablePayload: '',
+                      payloadType: 'b64ipc',
+                      payloadCompression: 'none',
+                    },
                   })
                 }
                 onClick={handleLoadTable}
@@ -487,10 +507,12 @@ export const MachineExample = () => {
                   'catalog.load_table',
                   !state.can({
                     type: 'CATALOG.LOAD_TABLE',
-                    tableName: '',
-                    tablePayload: '',
-                    payloadType: 'b64ipc',
-                    payloadCompression: 'none',
+                    data: {
+                      tableSpecName: '',
+                      tablePayload: '',
+                      payloadType: 'b64ipc',
+                      payloadCompression: 'none',
+                    },
                   })
                 )}
               >
@@ -507,11 +529,27 @@ export const MachineExample = () => {
                 Drop Table
               </button>
               <button
-                disabled={!state.can({ type: 'CATALOG.SUBSCRIBE', subscription: {} })}
+                disabled={
+                  !state.can({
+                    type: 'CATALOG.SUBSCRIBE',
+                    subscription: {
+                      tableSpecName: '',
+                      onSubscribe: () => {},
+                      onChange: () => {},
+                    },
+                  })
+                }
                 onClick={handleSubscribe}
                 className={getButtonClasses(
                   'catalog.subscribe',
-                  !state.can({ type: 'CATALOG.SUBSCRIBE', subscription: {} })
+                  !state.can({
+                    type: 'CATALOG.SUBSCRIBE',
+                    subscription: {
+                      tableSpecName: '',
+                      onSubscribe: () => {},
+                      onChange: () => {},
+                    },
+                  })
                 )}
               >
                 Subscribe

@@ -23,7 +23,7 @@ export type Events =
   | {
       type: 'CONNECT'
       dbProgressHandler: InstantiationProgressHandler | null
-      statusHandler: (status: DuckDbInitialistionStatus) => void
+      statusHandler: ((status: DuckDbInitialistionStatus) => void) | null
     }
   | { type: 'CONFIGURE'; config: MachineConfig }
   | { type: 'RECONNECT' }

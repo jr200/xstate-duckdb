@@ -20,6 +20,7 @@ export interface TableDefinition {
 }
 
 export interface LoadedTableEntry {
+  tableIsVersioned: boolean
   tableVersionId: number
   tableSpecName: string
   tableInstanceName: string
@@ -57,5 +58,5 @@ export interface CatalogSubscription {
   tableSpecName: string
   subscriptionUid?: string
   onSubscribe: (id: string, tableSpecName: string) => void
-  onChange: (tableInstanceName: string, tableVersionId: number) => void
+  onChange: (tableInstanceName: string, tableVersionId: number, isVersioned: boolean) => void
 }
