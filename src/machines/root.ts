@@ -6,7 +6,7 @@ import {
   InstantiationProgressHandler,
   LogLevel,
 } from '@duckdb/duckdb-wasm'
-import { MachineConfig } from '../lib/types'
+import { DuckDbInitialistionStatus, MachineConfig } from '../lib/types'
 import { closeDuckDb, initDuckDb } from '../actors/dbInit'
 import { beginTransaction, commitTransaction, rollbackTransaction, QueryDbParams, queryDuckDb } from '../actors/dbQuery'
 import { dbCatalogLogic, Events as DbCatalogEvents } from './dbCatalog'
@@ -20,7 +20,11 @@ export interface Context {
 }
 
 export type Events =
-  | { type: 'CONNECT'; dbProgressHandler: InstantiationProgressHandler | null }
+  | {
+      type: 'CONNECT'
+      dbProgressHandler: InstantiationProgressHandler | null
+      statusHandler: (status: DuckDbInitialistionStatus) => void
+    }
   | { type: 'CONFIGURE'; config: MachineConfig }
   | { type: 'RECONNECT' }
   | { type: 'DISCONNECT' }
@@ -115,6 +119,7 @@ export const duckdbMachine = setup({
           dbInitParams: context.dbInitParams,
           dbLogLevel: context.dbLogLevel ?? LogLevel.WARNING,
           dbProgressHandler: event.dbProgressHandler,
+          statusHandler: event.statusHandler,
         }),
         onDone: {
           target: 'connected',
@@ -148,7 +153,7 @@ export const duckdbMachine = setup({
         'CATALOG.*': {
           actions: [
             ({ event }: any) => {
-              console.log('forwarding event', event)
+              console.log('xstat-duckdb forwarding catalog event', event)
             },
             sendTo('dbCatalog', ({ event, context }: { event: Events; context: Context }) => {
               return { ...event, duckDbHandle: context.duckDbHandle }

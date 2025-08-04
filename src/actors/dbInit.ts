@@ -14,6 +14,8 @@ export const initDuckDb = fromPromise(async ({ input }: { input: InitDuckDbParam
 
   const worker = new Worker(workerUrl)
   const db = new AsyncDuckDB(new ConsoleLogger(input.dbLogLevel), worker)
+
+  input.statusHandler?.('initializing')
   await db.instantiate(bundle.mainModule, bundle.pthreadWorker, input.dbProgressHandler ?? undefined)
   URL.revokeObjectURL(workerUrl)
 
@@ -23,6 +25,8 @@ export const initDuckDb = fromPromise(async ({ input }: { input: InitDuckDbParam
   }
 
   const version = await db.getVersion()
+
+  input.statusHandler?.('ready')
 
   return {
     db,

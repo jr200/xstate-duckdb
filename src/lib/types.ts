@@ -46,8 +46,11 @@ interface DuckDbMachineConfig {
 
 export type MachineConfig = DuckDbMachineConfig & CatalogMachineConfig
 
+export type DuckDbInitialistionStatus = 'initializing' | 'ready' | 'error'
+
 export type InitDuckDbParams = DuckDbMachineConfig & {
-  dbProgressHandler: InstantiationProgressHandler | null
+  dbProgressHandler?: InstantiationProgressHandler | null
+  statusHandler?: (status: DuckDbInitialistionStatus) => void
 }
 
 export interface CatalogSubscription {
