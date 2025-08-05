@@ -20,9 +20,9 @@ export interface Context {
   loadedVersions: Array<LoadedTableEntry>
   subscriptions: Map<string, CatalogSubscription>
   nextTableId: number
-  error?: string
   pendingTableLoads: TableLoadEventInternal[]
   currentTableLoad: TableLoadEventInternal | null
+  error: string | null
 }
 
 type ExternalEvents =
@@ -78,6 +78,7 @@ export const dbCatalogLogic = setup({
     nextTableId: 1,
     pendingTableLoads: [],
     currentTableLoad: null,
+    error: null,
   },
 
   on: {

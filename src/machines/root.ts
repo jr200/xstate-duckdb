@@ -64,6 +64,18 @@ export const duckdbMachine = setup({
   id: 'duckdb',
   initial: 'idle',
 
+  on: {
+    'CATALOG.*': {
+      actions: [
+        ({ event }: any) => {
+          console.log('xstat-duckdb forwarding catalog event', event)
+        },
+        sendTo('dbCatalog', ({ event, context }: { event: Events; context: Context }) => {
+          return { ...event, duckDbHandle: context.duckDbHandle }
+        }),
+      ],
+    },
+  },
   states: {
     idle: {
       on: {
@@ -149,16 +161,6 @@ export const duckdbMachine = setup({
             }),
           ],
           target: 'disconnected',
-        },
-        'CATALOG.*': {
-          actions: [
-            ({ event }: any) => {
-              console.log('xstat-duckdb forwarding catalog event', event)
-            },
-            sendTo('dbCatalog', ({ event, context }: { event: Events; context: Context }) => {
-              return { ...event, duckDbHandle: context.duckDbHandle }
-            }),
-          ],
         },
 
         'TRANSACTION.BEGIN': {

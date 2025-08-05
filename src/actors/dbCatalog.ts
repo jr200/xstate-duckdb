@@ -56,7 +56,6 @@ export const loadTableIntoDuckDb = fromPromise(async ({ input }: any) => {
     input.callback?.(tableNameInstance, result.error)
     return catalogEntry
   } catch (error: any) {
-    console.error('Error loading table into DuckDB', error)
     input.callback?.({ error: error.message })
     return { error: error.message }
   }
@@ -113,7 +112,6 @@ async function loadTableFromB64ipc(
       schema: tableSchema,
       create: true,
     })
-
   } catch (error: any) {
     console.error('Error loading table from b64ipc', error)
     return { result: 'error', error: error }
