@@ -134,12 +134,12 @@ export const pruneTableVersions = fromPromise(async ({ input }: any) => {
         .filter(loadedTbl => loadedTbl.tableSpecName === name)
         .sort((a, b) => b.tableVersionId - a.tableVersionId)
 
+      const versionsToKeep = loadedTables.slice(0, maxVersions)
       if (isVersioned) {
-        const versionsToKeep = loadedTables.slice(0, maxVersions)
         const tableInstancesToPrune = loadedTables.slice(maxVersions).map(tbl => tbl.tableInstanceName)
         await dropTables(tableInstancesToPrune, dbConnection)
-        prunedLoadedVersions = [...prunedLoadedVersions, ...versionsToKeep]
       }
+      prunedLoadedVersions = [...prunedLoadedVersions, ...versionsToKeep]
     }
 
     await dbConnection.query(`COMMIT;`)
