@@ -1,4 +1,4 @@
-import { assign, sendTo, setup } from 'xstate'
+import { assign, sendTo, setup, spawnChild } from 'xstate'
 import {
   AsyncDuckDB,
   AsyncDuckDBConnection,
@@ -151,7 +151,15 @@ export const duckdbMachine = setup({
     connected: {
       on: {
         'QUERY.EXECUTE': {
-          target: 'query_one_shot',
+          actions: [
+            spawnChild('queryDuckDb', {
+              // id: 'query_one_shot',
+              input: ({ event, context }: any) => ({
+                ...event.queryParams,
+                connection: context.duckDbHandle!.connect(),
+              }),
+            }),
+          ],
         },
 
         DISCONNECT: {
@@ -246,20 +254,6 @@ export const duckdbMachine = setup({
       },
       onDone: {
         target: 'connected',
-      },
-    },
-
-    query_one_shot: {
-      invoke: {
-        src: 'queryDuckDb',
-        input: ({ event, context }: any) => {
-          return {
-            ...event.queryParams,
-            connection: context?.duckDbHandle?.connect(),
-          }
-        },
-        onDone: 'connected',
-        onError: 'error',
       },
     },
 

@@ -22,7 +22,7 @@ importers:
         version: 2.1.0
       xstate:
         specifier: ^5.20.1
-        version: 5.20.1
+        version: 5.20.2
     devDependencies:
       '@apache-arrow/ts':
         specifier: ^21.0.0
@@ -32,7 +32,7 @@ importers:
         version: 9.32.0
       '@statelyai/inspect':
         specifier: ^0.4.0
-        version: 0.4.0(ws@8.18.3)(xstate@5.20.1)
+        version: 0.4.0(ws@8.18.3)(xstate@5.20.2)
       '@types/pako':
         specifier: ^2.0.3
         version: 2.0.3
@@ -65,10 +65,10 @@ importers:
         version: link:../..
       '@statelyai/inspect':
         specifier: ^0.4.0
-        version: 0.4.0(ws@8.18.3)(xstate@5.20.1)
+        version: 0.4.0(ws@8.18.3)(xstate@5.20.2)
       '@xstate/react':
         specifier: ^6.0.0
-        version: 6.0.0(@types/react@19.1.9)(react@19.1.1)(xstate@5.20.1)
+        version: 6.0.0(@types/react@19.1.9)(react@19.1.1)(xstate@5.20.2)
       '@xterm/xterm':
         specifier: ^5.5.0
         version: 5.5.0
@@ -86,7 +86,7 @@ importers:
         version: 19.1.1(react@19.1.1)
       xstate:
         specifier: ^5.20.1
-        version: 5.20.1
+        version: 5.20.2
     devDependencies:
       '@types/react':
         specifier: ^19.1.9
@@ -1783,8 +1783,8 @@ packages:
       utf-8-validate:
         optional: true
 
-  xstate@5.20.1:
-    resolution: {integrity: sha512-i9ZpNnm/XhCOMUxae1suT8PjYNTStZWbhmuKt4xeTPaYG5TS0Fz0i+Ka5yxoNPpaHW3VW6JIowrwFgSTZONxig==}
+  xstate@5.20.2:
+    resolution: {integrity: sha512-GZmLmc+WPKfFRxuTDAxCg0cUhS/ZnWaRD86DO8MKizeK4a050jd5k7UNnIQ2jJDWRig2/r0tmVXeezUNIhoz5Q==}
 
   xterm-addon-fit@0.8.0:
     resolution: {integrity: sha512-yj3Np7XlvxxhYF/EJ7p3KHaMt6OdwQ+HDu573Vx1lRXsVxOcnVJs51RgjZOouIZOczTsskaS+CpXspK81/DLqw==}
@@ -2199,7 +2199,7 @@ snapshots:
 
   '@sinclair/typebox@0.34.38': {}
 
-  '@statelyai/inspect@0.4.0(ws@8.18.3)(xstate@5.20.1)':
+  '@statelyai/inspect@0.4.0(ws@8.18.3)(xstate@5.20.2)':
     dependencies:
       fast-safe-stringify: 2.1.1
       isomorphic-ws: 5.0.0(ws@8.18.3)
@@ -2207,7 +2207,7 @@ snapshots:
       safe-stable-stringify: 2.5.0
       superjson: 1.13.3
       uuid: 9.0.1
-      xstate: 5.20.1
+      xstate: 5.20.2
     transitivePeerDependencies:
       - ws
 
@@ -2415,13 +2415,13 @@ snapshots:
       loupe: 3.2.0
       tinyrainbow: 2.0.0
 
-  '@xstate/react@6.0.0(@types/react@19.1.9)(react@19.1.1)(xstate@5.20.1)':
+  '@xstate/react@6.0.0(@types/react@19.1.9)(react@19.1.1)(xstate@5.20.2)':
     dependencies:
       react: 19.1.1
       use-isomorphic-layout-effect: 1.2.1(@types/react@19.1.9)(react@19.1.1)
       use-sync-external-store: 1.5.0(react@19.1.1)
     optionalDependencies:
-      xstate: 5.20.1
+      xstate: 5.20.2
     transitivePeerDependencies:
       - '@types/react'
 
@@ -3435,7 +3435,7 @@ snapshots:
 
   ws@8.18.3: {}
 
-  xstate@5.20.1: {}
+  xstate@5.20.2: {}
 
   xterm-addon-fit@0.8.0(xterm@5.3.0):
     dependencies:
