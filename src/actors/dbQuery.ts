@@ -3,11 +3,19 @@ import { fromPromise } from 'xstate'
 import { JSONObject } from '../lib/types'
 import { arrowToJSON } from 'duckdb-wasm-kit'
 import { Table } from 'apache-arrow'
+import { arrayToObjectMap, arrayToObjectMultiMap, arrayToSimpleMap } from '../lib/utils'
+
+export interface ResultOptions {
+  key?: string
+  value?: string
+  type: 'dictionary' |'multimap' | 'singlevaluemap' | 'array' | 'arrow'
+}
+
 
 export interface QueryDbParams {
   description: string
   sql: string
-  resultType: 'arrow' | 'json'
+  resultOptions: ResultOptions
   callback?: (result: any) => void
 }
 
@@ -17,26 +25,49 @@ export const queryDuckDb = fromPromise(
   }: {
     input: QueryDbParams & { connection: Promise<AsyncDuckDBConnection> | AsyncDuckDBConnection }
   }) => {
-    return queryDuckDbInternal({
+    return duckdbRunQuery({
       ...input,
       connection: input.connection instanceof Promise ? await input.connection : input.connection,
     })
   }
 )
 
-export async function queryDuckDbInternal(input: QueryDbParams & { connection: AsyncDuckDBConnection }): Promise<any> {
+export async function duckdbRunQuery(input: QueryDbParams & { connection: AsyncDuckDBConnection }): Promise<any> {
   let result: any = null
-  if (input.resultType === 'arrow') {
+  if (input.resultOptions?.type === 'arrow') {
     result = await duckDbExecuteToArrow(input.description, input.sql, input.connection)
   } else {
     result = await duckDbExecuteToJson(input.description, input.sql, input.connection)
   }
+
+  result = formatResult(result, input.resultOptions)
 
   if (input.callback) {
     input.callback(result)
   } else {
     return result
   }
+}
+
+function formatResult(result: any, resultOptions?: ResultOptions) {
+  if(!resultOptions) {
+    return result
+  }
+
+  let transformed
+  if (resultOptions.type === 'singlevaluemap') {
+    transformed = arrayToSimpleMap(result, resultOptions.key!, resultOptions.value!)
+  } else if (resultOptions.type === 'multimap') {
+    transformed = arrayToObjectMultiMap(result, resultOptions.key!)
+  } else if (resultOptions.type === 'dictionary') {
+    transformed = arrayToObjectMap(result, resultOptions.key!)
+  } else if (resultOptions.type === 'array') {
+    transformed = result
+  } else {
+    throw new Error(`Unsupported result type: ${resultOptions.type}`)
+  }
+
+  return transformed
 }
 
 async function duckDbExecuteToArrow(
@@ -60,7 +91,7 @@ async function duckDbExecuteToArrow(
   }
 }
 
-export async function duckDbExecuteToJson(
+async function duckDbExecuteToJson(
   description: string,
   sqlText: string,
   connection: AsyncDuckDBConnection

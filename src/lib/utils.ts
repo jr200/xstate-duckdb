@@ -1,7 +1,3 @@
-export function joinLiterals(values: string[]): string {
-  return values.map(value => `'${value}'`).join(',')
-}
-
 export function arrayToSimpleMap(array: any[], key: string, value: string): Map<string, any> {
   const map = new Map<string, any>()
   array.forEach(item => {

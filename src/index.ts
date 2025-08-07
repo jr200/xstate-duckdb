@@ -11,6 +11,6 @@ export type {
   InitDuckDbParams,
 } from './lib/types'
 
-export type { QueryDbParams } from './actors/dbQuery'
+export { duckdbRunQuery, type QueryDbParams, type ResultOptions } from './actors/dbQuery'
 
 export type DuckDbCatalogSnapshot = SnapshotFrom<typeof dbCatalogLogic>

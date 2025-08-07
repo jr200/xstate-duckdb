@@ -96,7 +96,7 @@ export const MachineExample = () => {
         addOutput('query.execute', data)
       },
       description: 'execute',
-      resultType: 'json',
+      resultOptions: { type: 'array' },
     }
     send({
       type: 'QUERY.EXECUTE',
@@ -139,7 +139,7 @@ export const MachineExample = () => {
         addOutput('transaction.execute', data)
       },
       description: 'transaction.execute',
-      resultType: 'json',
+      resultOptions: { type: 'array' },
     }
     send({
       type: 'TRANSACTION.EXECUTE',
@@ -330,7 +330,7 @@ export const MachineExample = () => {
                         sql: query,
                         callback: () => {},
                         description: 'QUERY.EXECUTE',
-                        resultType: 'json',
+                        resultOptions: { type: 'array' },
                       },
                     })
                   }
@@ -343,7 +343,7 @@ export const MachineExample = () => {
                         sql: query,
                         callback: () => {},
                         description: 'QUERY.EXECUTE',
-                        resultType: 'json',
+                        resultOptions: { type: 'array' },
                       },
                     })
                   )}
@@ -365,7 +365,7 @@ export const MachineExample = () => {
                         sql: query,
                         callback: () => {},
                         description: 'TRANSACTION.EXECUTE',
-                        resultType: 'json',
+                        resultOptions: { type: 'array' },
                       },
                     })
                   }
@@ -378,7 +378,7 @@ export const MachineExample = () => {
                         sql: query,
                         callback: () => {},
                         description: 'TRANSACTION.EXECUTE',
-                        resultType: 'json',
+                        resultOptions: { type: 'array' },
                       },
                     })
                   )}
