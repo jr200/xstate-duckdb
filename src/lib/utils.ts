@@ -28,3 +28,16 @@ export function arrayToObjectMultiMap(array: any[], key: string): Map<string, an
   })
   return map
 }
+
+export function arrayToFirstValue(array: any[], key: string): any {
+  if (array.length === 0) {
+    return null
+  }
+
+  const firstRow = array[0]
+  if (firstRow[key] === undefined) {
+    return null
+  }
+
+  return firstRow[key]
+}

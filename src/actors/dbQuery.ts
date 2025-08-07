@@ -3,14 +3,13 @@ import { fromPromise } from 'xstate'
 import { JSONObject } from '../lib/types'
 import { arrowToJSON } from 'duckdb-wasm-kit'
 import { Table } from 'apache-arrow'
-import { arrayToObjectMap, arrayToObjectMultiMap, arrayToSimpleMap } from '../lib/utils'
+import { arrayToObjectMap, arrayToObjectMultiMap, arrayToSimpleMap, arrayToFirstValue } from '../lib/utils'
 
 export interface ResultOptions {
   key?: string
   value?: string
-  type: 'dictionary' |'multimap' | 'singlevaluemap' | 'array' | 'arrow'
+  type: 'dictionary' | 'multimap' | 'singlevaluemap' | 'array' | 'arrow' | 'firstvalue'
 }
-
 
 export interface QueryDbParams {
   description: string
@@ -50,7 +49,7 @@ export async function duckdbRunQuery(input: QueryDbParams & { connection: AsyncD
 }
 
 function formatResult(result: any, resultOptions?: ResultOptions) {
-  if(!resultOptions) {
+  if (!resultOptions) {
     return result
   }
 
@@ -63,6 +62,8 @@ function formatResult(result: any, resultOptions?: ResultOptions) {
     transformed = arrayToObjectMap(result, resultOptions.key!)
   } else if (resultOptions.type === 'array') {
     transformed = result
+  } else if (resultOptions.type === 'firstvalue') {
+    transformed = arrayToFirstValue(result, resultOptions.key!)
   } else {
     throw new Error(`Unsupported result type: ${resultOptions.type}`)
   }
