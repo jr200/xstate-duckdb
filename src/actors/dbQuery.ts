@@ -31,7 +31,11 @@ export const queryDuckDb = fromPromise(
   }
 )
 
-export async function duckdbRunQuery(input: QueryDbParams & { connection: AsyncDuckDBConnection }): Promise<any> {
+type DuckDbQueryResult = Record<string, JSONObject>[] | Table<any> | Map<string, any> | Map<string, any[]> | null
+
+export async function duckdbRunQuery(
+  input: QueryDbParams & { connection: AsyncDuckDBConnection }
+): Promise<DuckDbQueryResult | void> {
   let result: any = null
   const sql = input.sql as string
   if (input.resultOptions?.type === 'arrow') {
@@ -49,21 +53,37 @@ export async function duckdbRunQuery(input: QueryDbParams & { connection: AsyncD
   }
 }
 
-function formatResult(result: any, resultOptions?: ResultOptions) {
+function formatResult(
+  result: Record<string, JSONObject>[] | Table<any> | undefined,
+  resultOptions?: ResultOptions
+): Record<string, JSONObject>[] | Table<any> | Map<string, any> | Map<string, any[]> | any | null {
   if (!resultOptions) {
     return result
   }
 
-  let transformed
+  let transformed: Record<string, JSONObject>[] | Table<any> | Map<string, any> | Map<string, any[]> | any | null
+
   if (resultOptions.type === 'singlevaluemap') {
+    if (!Array.isArray(result)) {
+      throw new Error('Result must be an array for singlevaluemap transformation')
+    }
     transformed = arrayToSimpleMap(result, resultOptions.key!, resultOptions.value!)
   } else if (resultOptions.type === 'multimap') {
+    if (!Array.isArray(result)) {
+      throw new Error('Result must be an array for multimap transformation')
+    }
     transformed = arrayToObjectMultiMap(result, resultOptions.key!)
   } else if (resultOptions.type === 'dictionary') {
+    if (!Array.isArray(result)) {
+      throw new Error('Result must be an array for dictionary transformation')
+    }
     transformed = arrayToObjectMap(result, resultOptions.key!)
   } else if (resultOptions.type === 'array') {
     transformed = result
   } else if (resultOptions.type === 'firstvalue') {
+    if (!Array.isArray(result)) {
+      throw new Error('Result must be an array for firstvalue transformation')
+    }
     transformed = arrayToFirstValue(result, resultOptions.key!)
   } else {
     throw new Error(`Unsupported result type: ${resultOptions.type}`)
