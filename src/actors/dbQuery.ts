@@ -13,7 +13,7 @@ export interface ResultOptions {
 
 export interface QueryDbParams {
   description: string
-  sql: string
+  sql: string | ((context: any) => string)
   resultOptions: ResultOptions
   callback?: (result: any) => void
 }
@@ -33,10 +33,11 @@ export const queryDuckDb = fromPromise(
 
 export async function duckdbRunQuery(input: QueryDbParams & { connection: AsyncDuckDBConnection }): Promise<any> {
   let result: any = null
+  const sql = input.sql as string
   if (input.resultOptions?.type === 'arrow') {
-    result = await duckDbExecuteToArrow(input.description, input.sql, input.connection)
+    result = await duckDbExecuteToArrow(input.description, sql, input.connection)
   } else {
-    result = await duckDbExecuteToJson(input.description, input.sql, input.connection)
+    result = await duckDbExecuteToJson(input.description, sql, input.connection)
   }
 
   result = formatResult(result, input.resultOptions)
