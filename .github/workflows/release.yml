@@ -21,7 +21,7 @@ jobs:
   test:
     uses: jr200/github-action-templates/.github/workflows/ci_npmjs.yml@main
     with:
-      node-version: '22'
+      node-version: '24'
       pnpm-version: '10'
       run-integration: false
 
@@ -32,6 +32,6 @@ jobs:
       checkout-ref: ${{ inputs.checkout-ref || github.ref_name }}
       pnpm-run-test: 'true'
       pnpm-publish-args: ${{ inputs.pnpm-publish-args || '' }}
-      node-version: '22'
+      node-version: '24'
     secrets:
       npmjs_api_token: ${{ secrets.NPMJS_API_TOKEN }}
