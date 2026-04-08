@@ -20,6 +20,7 @@ export interface TableDefinition {
 }
 
 export interface LoadedTableEntry {
+  tableIsVersioned: boolean
   tableVersionId: number
   tableSpecName: string
   tableInstanceName: string
@@ -46,13 +47,16 @@ interface DuckDbMachineConfig {
 
 export type MachineConfig = DuckDbMachineConfig & CatalogMachineConfig
 
+export type DuckDbInitialistionStatus = 'initializing' | 'ready' | 'error'
+
 export type InitDuckDbParams = DuckDbMachineConfig & {
-  dbProgressHandler: InstantiationProgressHandler | null
+  dbProgressHandler?: InstantiationProgressHandler | null
+  statusHandler?: (status: DuckDbInitialistionStatus) => void
 }
 
 export interface CatalogSubscription {
   tableSpecName: string
   subscriptionUid?: string
   onSubscribe: (id: string, tableSpecName: string) => void
-  onChange: (tableInstanceName: string, tableVersionId: number) => void
+  onChange: (tableInstanceName: string, tableVersionId: number, isVersioned: boolean) => void
 }

@@ -1,4 +1,4 @@
-import { assign, sendTo, setup } from 'xstate'
+import { assign, sendTo, setup, spawnChild } from 'xstate'
 import {
   AsyncDuckDB,
   AsyncDuckDBConnection,
@@ -6,7 +6,7 @@ import {
   InstantiationProgressHandler,
   LogLevel,
 } from '@duckdb/duckdb-wasm'
-import { MachineConfig } from '../lib/types'
+import { DuckDbInitialistionStatus, MachineConfig } from '../lib/types'
 import { closeDuckDb, initDuckDb } from '../actors/dbInit'
 import { beginTransaction, commitTransaction, rollbackTransaction, QueryDbParams, queryDuckDb } from '../actors/dbQuery'
 import { dbCatalogLogic, Events as DbCatalogEvents } from './dbCatalog'
@@ -20,7 +20,11 @@ export interface Context {
 }
 
 export type Events =
-  | { type: 'CONNECT'; dbProgressHandler: InstantiationProgressHandler | null }
+  | {
+      type: 'CONNECT'
+      dbProgressHandler: InstantiationProgressHandler | null
+      statusHandler: ((status: DuckDbInitialistionStatus) => void) | null
+    }
   | { type: 'CONFIGURE'; config: MachineConfig }
   | { type: 'RECONNECT' }
   | { type: 'DISCONNECT' }
@@ -60,6 +64,18 @@ export const duckdbMachine = setup({
   id: 'duckdb',
   initial: 'idle',
 
+  on: {
+    'CATALOG.*': {
+      actions: [
+        ({ event }: any) => {
+          console.log('xstat-duckdb forwarding catalog event', event)
+        },
+        sendTo('dbCatalog', ({ event, context }: { event: Events; context: Context }) => {
+          return { ...event, duckDbHandle: context.duckDbHandle }
+        }),
+      ],
+    },
+  },
   states: {
     idle: {
       on: {
@@ -115,6 +131,7 @@ export const duckdbMachine = setup({
           dbInitParams: context.dbInitParams,
           dbLogLevel: context.dbLogLevel ?? LogLevel.WARNING,
           dbProgressHandler: event.dbProgressHandler,
+          statusHandler: event.statusHandler,
         }),
         onDone: {
           target: 'connected',
@@ -134,7 +151,15 @@ export const duckdbMachine = setup({
     connected: {
       on: {
         'QUERY.EXECUTE': {
-          target: 'query_one_shot',
+          actions: [
+            spawnChild('queryDuckDb', {
+              // id: 'query_one_shot',
+              input: ({ event, context }: any) => ({
+                ...event.queryParams,
+                connection: context.duckDbHandle!.connect(),
+              }),
+            }),
+          ],
         },
 
         DISCONNECT: {
@@ -144,16 +169,6 @@ export const duckdbMachine = setup({
             }),
           ],
           target: 'disconnected',
-        },
-        'CATALOG.*': {
-          actions: [
-            ({ event }: any) => {
-              console.log('forwarding event', event)
-            },
-            sendTo('dbCatalog', ({ event, context }: { event: Events; context: Context }) => {
-              return { ...event, duckDbHandle: context.duckDbHandle }
-            }),
-          ],
         },
 
         'TRANSACTION.BEGIN': {
@@ -239,20 +254,6 @@ export const duckdbMachine = setup({
       },
       onDone: {
         target: 'connected',
-      },
-    },
-
-    query_one_shot: {
-      invoke: {
-        src: 'queryDuckDb',
-        input: ({ event, context }: any) => {
-          return {
-            ...event.queryParams,
-            connection: context?.duckDbHandle?.connect(),
-          }
-        },
-        onDone: 'connected',
-        onError: 'error',
       },
     },
 
