@@ -1,4 +1,4 @@
-# @jr200/xstate-duckdb
+# @jr200-labs/xstate-duckdb
 
 A state machine for managing DuckDB operations in web applications. This library provides a type-safe interface for database initialization, query execution, transaction management, and table catalog operations.
 
@@ -16,11 +16,11 @@ A state machine for managing DuckDB operations in web applications. This library
 ## Installation
 
 ```bash
-npm install @jr200/xstate-duckdb
+npm install @jr200-labs/xstate-duckdb
 # or
-yarn add @jr200/xstate-duckdb
+yarn add @jr200-labs/xstate-duckdb
 # or
-pnpm add @jr200/xstate-duckdb
+pnpm add @jr200-labs/xstate-duckdb
 ```
 
 ## API Reference
@@ -73,7 +73,7 @@ The `duckdbMachine` has the following states:
 ### Basic Usage
 
 ```typescript
-import { duckdbMachine } from '@jr200/xstate-duckdb'
+import { duckdbMachine } from '@jr200-labs/xstate-duckdb'
 import { useActor } from '@xstate/react'
 
 function DatabaseComponent() {
