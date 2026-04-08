@@ -84,7 +84,7 @@ function formatResult(
       throw new Error('Result must be an array for dictionary transformation')
     }
     transformed = arrayToObjectMap(result, resultOptions.key!)
-  } else if (resultOptions.type === 'array') {
+  } else if (resultOptions.type === 'array' || resultOptions.type === 'arrow') {
     transformed = result
   } else if (resultOptions.type === 'firstvalue') {
     if (!Array.isArray(result)) {
