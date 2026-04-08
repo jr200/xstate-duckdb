@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createActor, fromPromise, setup, assign } from 'xstate'
-import type { TableDefinition, LoadedTableEntry, CatalogSubscription } from '../lib/types'
+import type { TableDefinition, LoadedTableEntry, CatalogSubscription } from '../../src/lib/types'
 
 // Create a testable version of dbCatalogLogic with mocked actors
 function createTestCatalogMachine(
   loadResult?: LoadedTableEntry,
-  pruneResult?: { loadedVersions: LoadedTableEntry[] }
+  pruneResult?: { loadedVersions: LoadedTableEntry[] },
 ) {
   return setup({
     types: {
@@ -56,7 +56,10 @@ function createTestCatalogMachine(
           const { subscription } = event
           const subscriptionKey = subscription.subscriptionUid ?? subscription.tableSpecName
           const newSubscriptions = new Map(context.subscriptions)
-          newSubscriptions.set(subscriptionKey, { ...subscription, subscriptionUid: subscriptionKey })
+          newSubscriptions.set(subscriptionKey, {
+            ...subscription,
+            subscriptionUid: subscriptionKey,
+          })
           return { subscriptions: newSubscriptions }
         }),
       },
@@ -120,10 +123,19 @@ function createTestCatalogMachine(
               const foundSub = context.subscriptions.get(event.id)
               if (foundSub) {
                 const latestTable = context.loadedVersions
-                  .filter((entry: LoadedTableEntry) => entry.tableSpecName === foundSub.tableSpecName)
-                  .sort((a: LoadedTableEntry, b: LoadedTableEntry) => b.tableVersionId - a.tableVersionId)[0]
+                  .filter(
+                    (entry: LoadedTableEntry) => entry.tableSpecName === foundSub.tableSpecName,
+                  )
+                  .sort(
+                    (a: LoadedTableEntry, b: LoadedTableEntry) =>
+                      b.tableVersionId - a.tableVersionId,
+                  )[0]
                 if (latestTable) {
-                  foundSub.onChange(latestTable.tableInstanceName, latestTable.tableVersionId, latestTable.tableIsVersioned)
+                  foundSub.onChange(
+                    latestTable.tableInstanceName,
+                    latestTable.tableVersionId,
+                    latestTable.tableIsVersioned,
+                  )
                 }
               }
             },
@@ -149,7 +161,11 @@ function createTestCatalogMachine(
               const newLoadedVersions = [loadedTable, ...context.loadedVersions]
               for (const [_, subscription] of context.subscriptions.entries()) {
                 if (subscription.tableSpecName === loadedTable.tableSpecName) {
-                  subscription.onChange(loadedTable.tableInstanceName, loadedTable.tableVersionId, loadedTable.tableIsVersioned)
+                  subscription.onChange(
+                    loadedTable.tableInstanceName,
+                    loadedTable.tableVersionId,
+                    loadedTable.tableIsVersioned,
+                  )
                 }
               }
               return { nextTableId: context.nextTableId + 1, loadedVersions: newLoadedVersions }
@@ -199,7 +215,10 @@ function createTestCatalogMachine(
 
 function waitForState(actor: any, targetState: string, timeout = 3000): Promise<void> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`Timed out waiting for state: ${targetState}`)), timeout)
+    const timer = setTimeout(
+      () => reject(new Error(`Timed out waiting for state: ${targetState}`)),
+      timeout,
+    )
     const check = () => {
       const snap = actor.getSnapshot()
       const stateValue = typeof snap.value === 'string' ? snap.value : JSON.stringify(snap.value)
@@ -228,7 +247,9 @@ describe('dbCatalogLogic', () => {
     const actor = createActor(machine)
     actor.start()
 
-    const defs: TableDefinition[] = [{ schema: 'main', name: 'test', isVersioned: true, maxVersions: 3 }]
+    const defs: TableDefinition[] = [
+      { schema: 'main', name: 'test', isVersioned: true, maxVersions: 3 },
+    ]
     actor.send({ type: 'CATALOG.CONFIGURE', tableDefinitions: defs })
 
     expect(actor.getSnapshot().value).toBe('configured')
@@ -336,7 +357,9 @@ describe('dbCatalogLogic', () => {
   })
 
   it('calls callback on CATALOG.LIST_DEFINITIONS', () => {
-    const defs: TableDefinition[] = [{ schema: 'main', name: 'test', isVersioned: true, maxVersions: 3 }]
+    const defs: TableDefinition[] = [
+      { schema: 'main', name: 'test', isVersioned: true, maxVersions: 3 },
+    ]
     const machine = createTestCatalogMachine()
     const actor = createActor(machine)
     actor.start()
@@ -362,7 +385,10 @@ describe('dbCatalogLogic', () => {
     const actor = createActor(machine)
     actor.start()
 
-    actor.send({ type: 'CATALOG.CONFIGURE', tableDefinitions: [{ schema: 'main', name: 'test', isVersioned: true, maxVersions: 3 }] })
+    actor.send({
+      type: 'CATALOG.CONFIGURE',
+      tableDefinitions: [{ schema: 'main', name: 'test', isVersioned: true, maxVersions: 3 }],
+    })
     actor.send({ type: 'CATALOG.CONNECT' })
 
     // Queue a table load
@@ -398,12 +424,20 @@ describe('dbCatalogLogic', () => {
     const actor = createActor(machine)
     actor.start()
 
-    actor.send({ type: 'CATALOG.CONFIGURE', tableDefinitions: [{ schema: 'main', name: 'test', isVersioned: true, maxVersions: 3 }] })
+    actor.send({
+      type: 'CATALOG.CONFIGURE',
+      tableDefinitions: [{ schema: 'main', name: 'test', isVersioned: true, maxVersions: 3 }],
+    })
 
     // Subscribe before connecting
     actor.send({
       type: 'CATALOG.SUBSCRIBE',
-      subscription: { tableSpecName: 'test', subscriptionUid: 'sub1', onSubscribe: vi.fn(), onChange },
+      subscription: {
+        tableSpecName: 'test',
+        subscriptionUid: 'sub1',
+        onSubscribe: vi.fn(),
+        onChange,
+      },
     })
 
     actor.send({ type: 'CATALOG.CONNECT' })
@@ -411,7 +445,12 @@ describe('dbCatalogLogic', () => {
     // Queue a table load
     actor.send({
       type: 'CATALOG.LOAD_TABLE',
-      data: { tableSpecName: 'test', tablePayload: {}, payloadType: 'json', payloadCompression: 'none' },
+      data: {
+        tableSpecName: 'test',
+        tablePayload: {},
+        payloadType: 'json',
+        payloadCompression: 'none',
+      },
       duckDbHandle: {},
     })
 
@@ -435,17 +474,30 @@ describe('dbCatalogLogic', () => {
     const actor = createActor(machine)
     actor.start()
 
-    actor.send({ type: 'CATALOG.CONFIGURE', tableDefinitions: [{ schema: 'main', name: 'test', isVersioned: true, maxVersions: 3 }] })
+    actor.send({
+      type: 'CATALOG.CONFIGURE',
+      tableDefinitions: [{ schema: 'main', name: 'test', isVersioned: true, maxVersions: 3 }],
+    })
     actor.send({
       type: 'CATALOG.SUBSCRIBE',
-      subscription: { tableSpecName: 'test', subscriptionUid: 'sub1', onSubscribe: vi.fn(), onChange },
+      subscription: {
+        tableSpecName: 'test',
+        subscriptionUid: 'sub1',
+        onSubscribe: vi.fn(),
+        onChange,
+      },
     })
     actor.send({ type: 'CATALOG.CONNECT' })
 
     // Load a table first
     actor.send({
       type: 'CATALOG.LOAD_TABLE',
-      data: { tableSpecName: 'test', tablePayload: {}, payloadType: 'json', payloadCompression: 'none' },
+      data: {
+        tableSpecName: 'test',
+        tablePayload: {},
+        payloadType: 'json',
+        payloadCompression: 'none',
+      },
       duckDbHandle: {},
     })
 
@@ -500,7 +552,10 @@ describe('dbCatalogLogic', () => {
       on: {
         'CATALOG.LOAD_TABLE': {
           actions: assign(({ context, event }: any) => ({
-            pendingTableLoads: [...context.pendingTableLoads, { ...event.data, duckDbHandle: event.duckDbHandle }],
+            pendingTableLoads: [
+              ...context.pendingTableLoads,
+              { ...event.data, duckDbHandle: event.duckDbHandle },
+            ],
           })),
         },
       },
@@ -526,7 +581,11 @@ describe('dbCatalogLogic', () => {
           }),
           invoke: {
             src: 'loadTableIntoDuckDb',
-            input: ({ context }: any) => ({ ...context.currentTableLoad, nextTableId: context.nextTableId, tableDefinitions: context.tableDefinitions }),
+            input: ({ context }: any) => ({
+              ...context.currentTableLoad,
+              nextTableId: context.nextTableId,
+              tableDefinitions: context.tableDefinitions,
+            }),
             onDone: { target: 'connected' },
             onError: {
               target: 'error',
@@ -551,7 +610,12 @@ describe('dbCatalogLogic', () => {
     actor.send({ type: 'CATALOG.CONNECT' })
     actor.send({
       type: 'CATALOG.LOAD_TABLE',
-      data: { tableSpecName: 'test', tablePayload: {}, payloadType: 'json', payloadCompression: 'none' },
+      data: {
+        tableSpecName: 'test',
+        tablePayload: {},
+        payloadType: 'json',
+        payloadCompression: 'none',
+      },
       duckDbHandle: {},
     })
 

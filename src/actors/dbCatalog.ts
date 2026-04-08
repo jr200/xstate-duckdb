@@ -38,7 +38,7 @@ export const loadTableIntoDuckDb = fromPromise(async ({ input }: any) => {
         tableNameInstance,
         input.tablePayload,
         dbConnection,
-        payloadCompression
+        payloadCompression,
       )
     } else if (payloadType === 'b64ipc') {
       result = await loadTableFromB64ipc(
@@ -47,7 +47,7 @@ export const loadTableIntoDuckDb = fromPromise(async ({ input }: any) => {
         tableNameInstance,
         input.tablePayload,
         dbConnection,
-        payloadCompression
+        payloadCompression,
       )
     } else {
       result = { error: `Unknown payload type: ${payloadType}` }
@@ -62,7 +62,7 @@ export const loadTableIntoDuckDb = fromPromise(async ({ input }: any) => {
 })
 
 function findTableDefinition(tableSpecName: string, definitions: TableDefinition[]) {
-  return definitions.find(def => def.name === tableSpecName)
+  return definitions.find((def) => def.name === tableSpecName)
 }
 
 function makeTableNameInstance(definition: TableDefinition, nextTableId: number): string {
@@ -77,7 +77,7 @@ async function loadTableFromJson(
   tableName: string,
   jsonPayload: JSONObject,
   dbConnection: AsyncDuckDBConnection,
-  compression: 'none' | 'zlib'
+  compression: 'none' | 'zlib',
 ): Promise<any> {
   console.log('loadTableFromJson', tableName, jsonPayload, tableIsVersioned)
   return { tableSchema, tableName, dbConnection, compression, jsonPayload }
@@ -89,7 +89,7 @@ async function loadTableFromB64ipc(
   tableName: string,
   base64ipc: string,
   connection: AsyncDuckDBConnection,
-  compression: 'none' | 'zlib'
+  compression: 'none' | 'zlib',
 ): Promise<any> {
   // const msgSizeMb = base64ipc.length / 1024 / 1024
 
@@ -131,12 +131,14 @@ export const pruneTableVersions = fromPromise(async ({ input }: any) => {
     for (const definition of definitions) {
       const { isVersioned, name, maxVersions } = definition
       const loadedTables = currentLoadedVersions
-        .filter(loadedTbl => loadedTbl.tableSpecName === name)
+        .filter((loadedTbl) => loadedTbl.tableSpecName === name)
         .sort((a, b) => b.tableVersionId - a.tableVersionId)
 
       const versionsToKeep = loadedTables.slice(0, maxVersions)
       if (isVersioned) {
-        const tableInstancesToPrune = loadedTables.slice(maxVersions).map(tbl => tbl.tableInstanceName)
+        const tableInstancesToPrune = loadedTables
+          .slice(maxVersions)
+          .map((tbl) => tbl.tableInstanceName)
         await dropTables(tableInstancesToPrune, dbConnection)
       }
       prunedLoadedVersions = [...prunedLoadedVersions, ...versionsToKeep]

@@ -5,7 +5,7 @@ import {
   arrayToObjectMultiMap,
   arrayToFirstRowMap,
   arrayToFirstValue,
-} from './utils'
+} from '../../src/lib/utils'
 
 describe('arrayToSimpleMap', () => {
   it('maps key and value fields from array of objects', () => {
@@ -82,7 +82,7 @@ describe('arrayToObjectMultiMap', () => {
   it('throws when key does not exist on an item', () => {
     const input = [{ other: 'value' }]
     expect(() => arrayToObjectMultiMap(input, 'missing')).toThrow(
-      'Key missing does not exist in array'
+      'Key missing does not exist in array',
     )
   })
 })

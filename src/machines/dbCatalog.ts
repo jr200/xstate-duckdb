@@ -191,14 +191,14 @@ export const dbCatalogLogic = setup({
             if (foundSub) {
               // Find the most recent version of this table
               const latestTable = context.loadedVersions
-                .filter(entry => entry.tableSpecName === foundSub.tableSpecName)
+                .filter((entry) => entry.tableSpecName === foundSub.tableSpecName)
                 .sort((a, b) => b.tableVersionId - a.tableVersionId)[0]
 
               if (latestTable) {
                 foundSub.onChange(
                   latestTable.tableInstanceName,
                   latestTable.tableVersionId,
-                  latestTable.tableIsVersioned
+                  latestTable.tableIsVersioned,
                 )
               }
             }
@@ -236,7 +236,7 @@ export const dbCatalogLogic = setup({
                 subscription.onChange(
                   loadedTable.tableInstanceName,
                   loadedTable.tableVersionId,
-                  loadedTable.tableIsVersioned
+                  loadedTable.tableIsVersioned,
                 )
               }
             }

@@ -14,7 +14,7 @@ import {
   type QueryDbParams,
   type ResultOptions,
   type DuckDbCatalogSnapshot,
-} from './index'
+} from '../src/index'
 
 describe('xstate-duckdb exports', () => {
   it('should export duckdbMachine', () => {
@@ -44,7 +44,20 @@ describe('xstate-duckdb exports', () => {
     const _snapshot: DuckDbCatalogSnapshot | undefined = undefined
 
     // Suppress unused warnings
-    void [_ctx, _evt, _catCtx, _catEvt, _status, _tableDef, _loadedEntry, _config, _initParams, _queryParams, _resultOpts, _snapshot]
+    void [
+      _ctx,
+      _evt,
+      _catCtx,
+      _catEvt,
+      _status,
+      _tableDef,
+      _loadedEntry,
+      _config,
+      _initParams,
+      _queryParams,
+      _resultOpts,
+      _snapshot,
+    ]
 
     expect(true).toBe(true)
   })

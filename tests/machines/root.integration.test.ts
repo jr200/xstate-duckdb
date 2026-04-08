@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { createActor, fromPromise, createMachine } from 'xstate'
-import { duckdbMachine } from './root'
+import { duckdbMachine } from '../../src/machines/root'
 
 // Suppress expected console.log output from catalog event forwarding
 vi.spyOn(console, 'log').mockImplementation(() => {})
@@ -30,7 +30,10 @@ const testMachine = duckdbMachine.provide({
 
 function waitForState(actor: any, targetState: string, timeout = 3000): Promise<void> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`Timed out waiting for state: ${targetState}`)), timeout)
+    const timer = setTimeout(
+      () => reject(new Error(`Timed out waiting for state: ${targetState}`)),
+      timeout,
+    )
     const check = () => {
       const snap = actor.getSnapshot()
       const stateValue = typeof snap.value === 'string' ? snap.value : JSON.stringify(snap.value)
@@ -74,7 +77,10 @@ describe('actual duckdbMachine with mocked actors', () => {
     const actor = createActor(testMachine)
     actor.start()
 
-    actor.send({ type: 'CONFIGURE', config: { dbInitParams: null, dbLogLevel: 2, tableDefinitions: [] } })
+    actor.send({
+      type: 'CONFIGURE',
+      config: { dbInitParams: null, dbLogLevel: 2, tableDefinitions: [] },
+    })
     actor.send({ type: 'CONNECT', dbProgressHandler: null, statusHandler: null })
     await waitForState(actor, 'connected')
 
@@ -89,7 +95,10 @@ describe('actual duckdbMachine with mocked actors', () => {
     const actor = createActor(testMachine)
     actor.start()
 
-    actor.send({ type: 'CONFIGURE', config: { dbInitParams: null, dbLogLevel: 2, tableDefinitions: [] } })
+    actor.send({
+      type: 'CONFIGURE',
+      config: { dbInitParams: null, dbLogLevel: 2, tableDefinitions: [] },
+    })
     actor.send({ type: 'CONNECT', dbProgressHandler: null, statusHandler: null })
     await waitForState(actor, 'connected')
 
@@ -106,7 +115,10 @@ describe('actual duckdbMachine with mocked actors', () => {
     const actor = createActor(testMachine)
     actor.start()
 
-    actor.send({ type: 'CONFIGURE', config: { dbInitParams: null, dbLogLevel: 2, tableDefinitions: [] } })
+    actor.send({
+      type: 'CONFIGURE',
+      config: { dbInitParams: null, dbLogLevel: 2, tableDefinitions: [] },
+    })
     actor.send({ type: 'CONNECT', dbProgressHandler: null, statusHandler: null })
     await waitForState(actor, 'connected')
 
@@ -115,7 +127,11 @@ describe('actual duckdbMachine with mocked actors', () => {
 
     actor.send({
       type: 'TRANSACTION.EXECUTE',
-      queryParams: { description: 'txn', sql: 'INSERT INTO t VALUES(1)', resultOptions: { type: 'array' } },
+      queryParams: {
+        description: 'txn',
+        sql: 'INSERT INTO t VALUES(1)',
+        resultOptions: { type: 'array' },
+      },
     })
     await waitForState(actor, 'within_transaction')
 
@@ -130,7 +146,10 @@ describe('actual duckdbMachine with mocked actors', () => {
     const actor = createActor(testMachine)
     actor.start()
 
-    actor.send({ type: 'CONFIGURE', config: { dbInitParams: null, dbLogLevel: 2, tableDefinitions: [] } })
+    actor.send({
+      type: 'CONFIGURE',
+      config: { dbInitParams: null, dbLogLevel: 2, tableDefinitions: [] },
+    })
     actor.send({ type: 'CONNECT', dbProgressHandler: null, statusHandler: null })
     await waitForState(actor, 'connected')
 
@@ -148,7 +167,10 @@ describe('actual duckdbMachine with mocked actors', () => {
     const actor = createActor(testMachine)
     actor.start()
 
-    actor.send({ type: 'CONFIGURE', config: { dbInitParams: { path: ':memory:' }, dbLogLevel: 2, tableDefinitions: [] } })
+    actor.send({
+      type: 'CONFIGURE',
+      config: { dbInitParams: { path: ':memory:' }, dbLogLevel: 2, tableDefinitions: [] },
+    })
     expect(actor.getSnapshot().value).toBe('configured')
 
     actor.send({ type: 'RESET' })

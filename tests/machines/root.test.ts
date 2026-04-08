@@ -176,7 +176,10 @@ function createMockMachine() {
 
 function waitForState(actor: any, targetState: string, timeout = 3000): Promise<void> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`Timed out waiting for state: ${targetState}`)), timeout)
+    const timer = setTimeout(
+      () => reject(new Error(`Timed out waiting for state: ${targetState}`)),
+      timeout,
+    )
     const check = () => {
       const snap = actor.getSnapshot()
       const stateValue = typeof snap.value === 'string' ? snap.value : JSON.stringify(snap.value)
@@ -220,7 +223,10 @@ describe('duckdbMachine (root)', () => {
     const actor = createActor(machine)
     actor.start()
 
-    actor.send({ type: 'CONFIGURE', config: { dbInitParams: null, dbLogLevel: 2, tableDefinitions: [] } })
+    actor.send({
+      type: 'CONFIGURE',
+      config: { dbInitParams: null, dbLogLevel: 2, tableDefinitions: [] },
+    })
     actor.send({ type: 'RESET' })
 
     expect(actor.getSnapshot().value).toBe('idle')
@@ -233,7 +239,10 @@ describe('duckdbMachine (root)', () => {
     const actor = createActor(machine)
     actor.start()
 
-    actor.send({ type: 'CONFIGURE', config: { dbInitParams: null, dbLogLevel: 2, tableDefinitions: [] } })
+    actor.send({
+      type: 'CONFIGURE',
+      config: { dbInitParams: null, dbLogLevel: 2, tableDefinitions: [] },
+    })
     actor.send({ type: 'CONNECT', dbProgressHandler: null, statusHandler: null })
 
     await waitForState(actor, 'connected')
@@ -249,7 +258,10 @@ describe('duckdbMachine (root)', () => {
     const actor = createActor(machine)
     actor.start()
 
-    actor.send({ type: 'CONFIGURE', config: { dbInitParams: null, dbLogLevel: 2, tableDefinitions: [] } })
+    actor.send({
+      type: 'CONFIGURE',
+      config: { dbInitParams: null, dbLogLevel: 2, tableDefinitions: [] },
+    })
     actor.send({ type: 'CONNECT', dbProgressHandler: null, statusHandler: null })
     await waitForState(actor, 'connected')
 
@@ -266,7 +278,10 @@ describe('duckdbMachine (root)', () => {
     const actor = createActor(machine)
     actor.start()
 
-    actor.send({ type: 'CONFIGURE', config: { dbInitParams: null, dbLogLevel: 2, tableDefinitions: [] } })
+    actor.send({
+      type: 'CONFIGURE',
+      config: { dbInitParams: null, dbLogLevel: 2, tableDefinitions: [] },
+    })
     actor.send({ type: 'CONNECT', dbProgressHandler: null, statusHandler: null })
     await waitForState(actor, 'connected')
 
@@ -285,7 +300,10 @@ describe('duckdbMachine (root)', () => {
     const actor = createActor(machine)
     actor.start()
 
-    actor.send({ type: 'CONFIGURE', config: { dbInitParams: null, dbLogLevel: 2, tableDefinitions: [] } })
+    actor.send({
+      type: 'CONFIGURE',
+      config: { dbInitParams: null, dbLogLevel: 2, tableDefinitions: [] },
+    })
     actor.send({ type: 'CONNECT', dbProgressHandler: null, statusHandler: null })
     await waitForState(actor, 'connected')
 
@@ -296,7 +314,11 @@ describe('duckdbMachine (root)', () => {
 
     actor.send({
       type: 'TRANSACTION.EXECUTE',
-      queryParams: { description: 'txn-q', sql: 'INSERT INTO t VALUES(1)', resultOptions: { type: 'array' } },
+      queryParams: {
+        description: 'txn-q',
+        sql: 'INSERT INTO t VALUES(1)',
+        resultOptions: { type: 'array' },
+      },
     })
     await waitForState(actor, 'within_transaction')
 
@@ -313,7 +335,10 @@ describe('duckdbMachine (root)', () => {
     const actor = createActor(machine)
     actor.start()
 
-    actor.send({ type: 'CONFIGURE', config: { dbInitParams: null, dbLogLevel: 2, tableDefinitions: [] } })
+    actor.send({
+      type: 'CONFIGURE',
+      config: { dbInitParams: null, dbLogLevel: 2, tableDefinitions: [] },
+    })
     actor.send({ type: 'CONNECT', dbProgressHandler: null, statusHandler: null })
     await waitForState(actor, 'connected')
 

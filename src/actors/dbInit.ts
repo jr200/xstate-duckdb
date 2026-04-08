@@ -9,14 +9,18 @@ export const initDuckDb = fromPromise(async ({ input }: { input: InitDuckDbParam
   const workerUrl = URL.createObjectURL(
     new Blob([`importScripts("${bundle.mainWorker!}");`], {
       type: 'text/javascript',
-    })
+    }),
   )
 
   const worker = new Worker(workerUrl)
   const db = new AsyncDuckDB(new ConsoleLogger(input.dbLogLevel), worker)
 
   input.statusHandler?.('initializing')
-  await db.instantiate(bundle.mainModule, bundle.pthreadWorker, input.dbProgressHandler ?? undefined)
+  await db.instantiate(
+    bundle.mainModule,
+    bundle.pthreadWorker,
+    input.dbProgressHandler ?? undefined,
+  )
   URL.revokeObjectURL(workerUrl)
 
   if (input.dbInitParams) {

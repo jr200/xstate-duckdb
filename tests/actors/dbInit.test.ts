@@ -10,13 +10,13 @@ const mockTerminate = vi.fn().mockResolvedValue(undefined)
 
 vi.mock('@duckdb/duckdb-wasm', () => {
   return {
-    AsyncDuckDB: vi.fn().mockImplementation(() => ({
-      instantiate: mockInstantiate,
-      open: mockOpen,
-      getVersion: mockGetVersion,
-      terminate: mockTerminate,
-    })),
-    ConsoleLogger: vi.fn(),
+    AsyncDuckDB: class MockAsyncDuckDB {
+      instantiate = mockInstantiate
+      open = mockOpen
+      getVersion = mockGetVersion
+      terminate = mockTerminate
+    },
+    ConsoleLogger: class MockConsoleLogger {},
     getJsDelivrBundles: vi.fn().mockReturnValue({}),
     selectBundle: vi.fn().mockResolvedValue({
       mainModule: 'module.wasm',
@@ -33,13 +33,13 @@ vi.stubGlobal(
   Object.assign(globalThis.URL ?? function () {}, {
     createObjectURL: vi.fn().mockReturnValue('blob:mock-url'),
     revokeObjectURL: vi.fn(),
-  })
+  }),
 )
-vi.stubGlobal('Blob', vi.fn().mockImplementation(() => ({})))
-vi.stubGlobal('Worker', vi.fn().mockImplementation(() => ({})))
+vi.stubGlobal('Blob', class MockBlob {})
+vi.stubGlobal('Worker', class MockWorker {})
 
 import { createActor } from 'xstate'
-import { initDuckDb, closeDuckDb } from './dbInit'
+import { initDuckDb, closeDuckDb } from '../../src/actors/dbInit'
 import { LogLevel } from '@duckdb/duckdb-wasm'
 
 describe('initDuckDb', () => {

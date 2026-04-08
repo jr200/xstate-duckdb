@@ -68,7 +68,6 @@ The `duckdbMachine` has the following states:
 - `CATALOG.DROP_TABLE`: Drop a table
 - `CATALOG.LIST_DEFINITIONS`: Get catalog configuration
 
-
 ## Examples
 
 ### Basic Usage

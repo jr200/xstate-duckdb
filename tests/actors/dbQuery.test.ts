@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createActor } from 'xstate'
-import { duckdbRunQuery, queryDuckDb, beginTransaction, commitTransaction, rollbackTransaction, type QueryDbParams } from './dbQuery'
+import {
+  duckdbRunQuery,
+  queryDuckDb,
+  beginTransaction,
+  commitTransaction,
+  rollbackTransaction,
+  type QueryDbParams,
+} from '../../src/actors/dbQuery'
 
 // Mock duckdb-wasm-kit's arrowToJSON
 vi.mock('duckdb-wasm-kit', () => ({
@@ -120,7 +127,10 @@ describe('duckdbRunQuery', () => {
   })
 
   it('returns firstrow result type', async () => {
-    const rows = [{ a: 1, b: 2 }, { a: 3, b: 4 }]
+    const rows = [
+      { a: 1, b: 2 },
+      { a: 3, b: 4 },
+    ]
     const conn = createMockConnection({ _jsonData: rows })
 
     const result = await duckdbRunQuery({
@@ -190,7 +200,7 @@ describe('duckdbRunQuery', () => {
         sql: 'SELECT 1',
         resultOptions: { type: 'unknown' as any },
         connection: conn,
-      })
+      }),
     ).rejects.toThrow('Unsupported result type: unknown')
   })
 

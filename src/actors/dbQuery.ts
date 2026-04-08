@@ -34,13 +34,18 @@ export const queryDuckDb = fromPromise(
       ...input,
       connection: input.connection instanceof Promise ? await input.connection : input.connection,
     })
-  }
+  },
 )
 
-type DuckDbQueryResult = Record<string, JSONObject>[] | Table<any> | Map<string, any> | Map<string, any[]> | null
+type DuckDbQueryResult =
+  | Record<string, JSONObject>[]
+  | Table<any>
+  | Map<string, any>
+  | Map<string, any[]>
+  | null
 
 export async function duckdbRunQuery(
-  input: QueryDbParams & { connection: AsyncDuckDBConnection }
+  input: QueryDbParams & { connection: AsyncDuckDBConnection },
 ): Promise<DuckDbQueryResult | void> {
   let result: any = null
   const sql = input.sql as string
@@ -61,13 +66,19 @@ export async function duckdbRunQuery(
 
 function formatResult(
   result: Record<string, JSONObject>[] | Table<any> | undefined,
-  resultOptions?: ResultOptions
+  resultOptions?: ResultOptions,
 ): Record<string, JSONObject>[] | Table<any> | Map<string, any> | Map<string, any[]> | any | null {
   if (!resultOptions) {
     return result
   }
 
-  let transformed: Record<string, JSONObject>[] | Table<any> | Map<string, any> | Map<string, any[]> | any | null
+  let transformed:
+    | Record<string, JSONObject>[]
+    | Table<any>
+    | Map<string, any>
+    | Map<string, any[]>
+    | any
+    | null
 
   if (resultOptions.type === 'singlevaluemap') {
     if (!Array.isArray(result)) {
@@ -107,7 +118,7 @@ async function duckDbExecuteToArrow(
   description: string,
   sqlText: string,
   connection: AsyncDuckDBConnection,
-  debug: boolean = false
+  debug: boolean = false,
 ): Promise<Table<any> | undefined> {
   if (!connection) return undefined
 
@@ -127,7 +138,7 @@ async function duckDbExecuteToArrow(
 async function duckDbExecuteToJson(
   description: string,
   sqlText: string,
-  connection: AsyncDuckDBConnection
+  connection: AsyncDuckDBConnection,
 ): Promise<Record<string, JSONObject>[]> {
   const response = await duckDbExecuteToArrow(description, sqlText, connection)
   if (!response) {
@@ -142,13 +153,17 @@ export const beginTransaction = fromPromise(
     const connection = await input.connect()
     await connection.query('BEGIN TRANSACTION;')
     return connection
-  }
+  },
 )
 
-export const commitTransaction = fromPromise(async ({ input }: { input: AsyncDuckDBConnection }): Promise<void> => {
-  await input.query('COMMIT;')
-})
+export const commitTransaction = fromPromise(
+  async ({ input }: { input: AsyncDuckDBConnection }): Promise<void> => {
+    await input.query('COMMIT;')
+  },
+)
 
-export const rollbackTransaction = fromPromise(async ({ input }: { input: AsyncDuckDBConnection }): Promise<void> => {
-  await input.query('ROLLBACK;')
-})
+export const rollbackTransaction = fromPromise(
+  async ({ input }: { input: AsyncDuckDBConnection }): Promise<void> => {
+    await input.query('ROLLBACK;')
+  },
+)

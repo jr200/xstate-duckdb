@@ -8,7 +8,13 @@ import {
 } from '@duckdb/duckdb-wasm'
 import { DuckDbInitialistionStatus, MachineConfig } from '../lib/types'
 import { closeDuckDb, initDuckDb } from '../actors/dbInit'
-import { beginTransaction, commitTransaction, rollbackTransaction, QueryDbParams, queryDuckDb } from '../actors/dbQuery'
+import {
+  beginTransaction,
+  commitTransaction,
+  rollbackTransaction,
+  QueryDbParams,
+  queryDuckDb,
+} from '../actors/dbQuery'
 import { dbCatalogLogic, Events as DbCatalogEvents } from './dbCatalog'
 
 export interface Context {

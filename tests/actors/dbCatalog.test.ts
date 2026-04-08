@@ -23,8 +23,8 @@ vi.stubGlobal('window', {
   atob: (str: string) => Buffer.from(str, 'base64').toString('binary'),
 })
 
-import { loadTableIntoDuckDb, pruneTableVersions, dropTables } from './dbCatalog'
-import type { TableDefinition } from '../lib/types'
+import { loadTableIntoDuckDb, pruneTableVersions, dropTables } from '../../src/actors/dbCatalog'
+import type { TableDefinition } from '../../src/lib/types'
 
 const tableDefs: TableDefinition[] = [
   { schema: 'main', name: 'users', isVersioned: true, maxVersions: 2 },
@@ -308,10 +308,34 @@ describe('pruneTableVersions', () => {
 
   it('keeps only maxVersions entries per definition', async () => {
     const loadedVersions = [
-      { tableSpecName: 'users', tableVersionId: 3, tableInstanceName: 'users_3', tableIsVersioned: true, loadedEpoch: 3 },
-      { tableSpecName: 'users', tableVersionId: 2, tableInstanceName: 'users_2', tableIsVersioned: true, loadedEpoch: 2 },
-      { tableSpecName: 'users', tableVersionId: 1, tableInstanceName: 'users_1', tableIsVersioned: true, loadedEpoch: 1 },
-      { tableSpecName: 'config', tableVersionId: 1, tableInstanceName: 'config', tableIsVersioned: false, loadedEpoch: 1 },
+      {
+        tableSpecName: 'users',
+        tableVersionId: 3,
+        tableInstanceName: 'users_3',
+        tableIsVersioned: true,
+        loadedEpoch: 3,
+      },
+      {
+        tableSpecName: 'users',
+        tableVersionId: 2,
+        tableInstanceName: 'users_2',
+        tableIsVersioned: true,
+        loadedEpoch: 2,
+      },
+      {
+        tableSpecName: 'users',
+        tableVersionId: 1,
+        tableInstanceName: 'users_1',
+        tableIsVersioned: true,
+        loadedEpoch: 1,
+      },
+      {
+        tableSpecName: 'config',
+        tableVersionId: 1,
+        tableInstanceName: 'config',
+        tableIsVersioned: false,
+        loadedEpoch: 1,
+      },
     ]
 
     const actor = createActor(pruneTableVersions, {
@@ -352,9 +376,27 @@ describe('pruneTableVersions', () => {
       .mockRejectedValueOnce(new Error('drop failed')) // DROP fails
 
     const loadedVersions = [
-      { tableSpecName: 'users', tableVersionId: 3, tableInstanceName: 'users_3', tableIsVersioned: true, loadedEpoch: 3 },
-      { tableSpecName: 'users', tableVersionId: 2, tableInstanceName: 'users_2', tableIsVersioned: true, loadedEpoch: 2 },
-      { tableSpecName: 'users', tableVersionId: 1, tableInstanceName: 'users_1', tableIsVersioned: true, loadedEpoch: 1 },
+      {
+        tableSpecName: 'users',
+        tableVersionId: 3,
+        tableInstanceName: 'users_3',
+        tableIsVersioned: true,
+        loadedEpoch: 3,
+      },
+      {
+        tableSpecName: 'users',
+        tableVersionId: 2,
+        tableInstanceName: 'users_2',
+        tableIsVersioned: true,
+        loadedEpoch: 2,
+      },
+      {
+        tableSpecName: 'users',
+        tableVersionId: 1,
+        tableInstanceName: 'users_1',
+        tableIsVersioned: true,
+        loadedEpoch: 1,
+      },
     ]
 
     const actor = createActor(pruneTableVersions, {

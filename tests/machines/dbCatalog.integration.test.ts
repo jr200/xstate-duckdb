@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { createActor, fromPromise } from 'xstate'
-import { dbCatalogLogic } from './dbCatalog'
-import type { LoadedTableEntry, CatalogSubscription } from '../lib/types'
+import { dbCatalogLogic } from '../../src/machines/dbCatalog'
+import type { LoadedTableEntry, CatalogSubscription } from '../../src/lib/types'
 
 const mockLoadedEntry: LoadedTableEntry = {
   tableIsVersioned: true,
@@ -13,21 +13,22 @@ const mockLoadedEntry: LoadedTableEntry = {
 
 function createTestMachine(
   loadResult: LoadedTableEntry = mockLoadedEntry,
-  pruneResult?: { loadedVersions: LoadedTableEntry[] }
+  pruneResult?: { loadedVersions: LoadedTableEntry[] },
 ) {
   return dbCatalogLogic.provide({
     actors: {
       loadTableIntoDuckDb: fromPromise(async () => loadResult),
-      pruneTableVersions: fromPromise(
-        async () => pruneResult ?? { loadedVersions: [loadResult] }
-      ),
+      pruneTableVersions: fromPromise(async () => pruneResult ?? { loadedVersions: [loadResult] }),
     },
   })
 }
 
 function waitForState(actor: any, targetState: string, timeout = 3000): Promise<void> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`Timed out waiting for state: ${targetState}`)), timeout)
+    const timer = setTimeout(
+      () => reject(new Error(`Timed out waiting for state: ${targetState}`)),
+      timeout,
+    )
     const check = () => {
       const snap = actor.getSnapshot()
       const stateValue = typeof snap.value === 'string' ? snap.value : JSON.stringify(snap.value)
@@ -55,7 +56,10 @@ describe('actual dbCatalogLogic with mocked actors', () => {
     const actor = createActor(machine)
     actor.start()
 
-    actor.send({ type: 'CATALOG.CONFIGURE', tableDefinitions: [{ schema: 'main', name: 'test', isVersioned: true, maxVersions: 3 }] })
+    actor.send({
+      type: 'CATALOG.CONFIGURE',
+      tableDefinitions: [{ schema: 'main', name: 'test', isVersioned: true, maxVersions: 3 }],
+    })
     expect(actor.getSnapshot().value).toBe('configured')
 
     actor.send({ type: 'CATALOG.CONNECT' })
@@ -68,12 +72,20 @@ describe('actual dbCatalogLogic with mocked actors', () => {
     const actor = createActor(machine)
     actor.start()
 
-    actor.send({ type: 'CATALOG.CONFIGURE', tableDefinitions: [{ schema: 'main', name: 'test', isVersioned: true, maxVersions: 3 }] })
+    actor.send({
+      type: 'CATALOG.CONFIGURE',
+      tableDefinitions: [{ schema: 'main', name: 'test', isVersioned: true, maxVersions: 3 }],
+    })
     actor.send({ type: 'CATALOG.CONNECT' })
 
     actor.send({
       type: 'CATALOG.LOAD_TABLE',
-      data: { tableSpecName: 'test', tablePayload: {}, payloadType: 'json', payloadCompression: 'none' },
+      data: {
+        tableSpecName: 'test',
+        tablePayload: {},
+        payloadType: 'json',
+        payloadCompression: 'none',
+      },
       duckDbHandle: {},
     } as any)
 
@@ -138,17 +150,30 @@ describe('actual dbCatalogLogic with mocked actors', () => {
     const actor = createActor(machine)
     actor.start()
 
-    actor.send({ type: 'CATALOG.CONFIGURE', tableDefinitions: [{ schema: 'main', name: 'test', isVersioned: true, maxVersions: 3 }] })
+    actor.send({
+      type: 'CATALOG.CONFIGURE',
+      tableDefinitions: [{ schema: 'main', name: 'test', isVersioned: true, maxVersions: 3 }],
+    })
     actor.send({
       type: 'CATALOG.SUBSCRIBE',
-      subscription: { tableSpecName: 'test', subscriptionUid: 'sub1', onSubscribe: vi.fn(), onChange },
+      subscription: {
+        tableSpecName: 'test',
+        subscriptionUid: 'sub1',
+        onSubscribe: vi.fn(),
+        onChange,
+      },
     })
     actor.send({ type: 'CATALOG.CONNECT' })
 
     // Load a table to populate loadedVersions
     actor.send({
       type: 'CATALOG.LOAD_TABLE',
-      data: { tableSpecName: 'test', tablePayload: {}, payloadType: 'json', payloadCompression: 'none' },
+      data: {
+        tableSpecName: 'test',
+        tablePayload: {},
+        payloadType: 'json',
+        payloadCompression: 'none',
+      },
       duckDbHandle: {},
     } as any)
 
@@ -178,7 +203,10 @@ describe('actual dbCatalogLogic with mocked actors', () => {
     const actor = createActor(machine)
     actor.start()
 
-    actor.send({ type: 'CATALOG.CONFIGURE', tableDefinitions: [{ schema: 'main', name: 'x', isVersioned: false, maxVersions: 1 }] })
+    actor.send({
+      type: 'CATALOG.CONFIGURE',
+      tableDefinitions: [{ schema: 'main', name: 'x', isVersioned: false, maxVersions: 1 }],
+    })
     actor.send({ type: 'CATALOG.RESET' })
 
     expect(actor.getSnapshot().value).toBe('idle')
@@ -205,16 +233,29 @@ describe('actual dbCatalogLogic with mocked actors', () => {
     const actor = createActor(machine)
     actor.start()
 
-    actor.send({ type: 'CATALOG.CONFIGURE', tableDefinitions: [{ schema: 'main', name: 'test', isVersioned: true, maxVersions: 3 }] })
+    actor.send({
+      type: 'CATALOG.CONFIGURE',
+      tableDefinitions: [{ schema: 'main', name: 'test', isVersioned: true, maxVersions: 3 }],
+    })
     actor.send({
       type: 'CATALOG.SUBSCRIBE',
-      subscription: { tableSpecName: 'test', subscriptionUid: 'sub1', onSubscribe: vi.fn(), onChange },
+      subscription: {
+        tableSpecName: 'test',
+        subscriptionUid: 'sub1',
+        onSubscribe: vi.fn(),
+        onChange,
+      },
     })
     actor.send({ type: 'CATALOG.CONNECT' })
 
     actor.send({
       type: 'CATALOG.LOAD_TABLE',
-      data: { tableSpecName: 'test', tablePayload: {}, payloadType: 'json', payloadCompression: 'none' },
+      data: {
+        tableSpecName: 'test',
+        tablePayload: {},
+        payloadType: 'json',
+        payloadCompression: 'none',
+      },
       duckDbHandle: {},
     } as any)
 
@@ -236,11 +277,19 @@ describe('actual dbCatalogLogic with mocked actors', () => {
     const actor = createActor(failMachine)
     actor.start()
 
-    actor.send({ type: 'CATALOG.CONFIGURE', tableDefinitions: [{ schema: 'main', name: 'test', isVersioned: true, maxVersions: 3 }] })
+    actor.send({
+      type: 'CATALOG.CONFIGURE',
+      tableDefinitions: [{ schema: 'main', name: 'test', isVersioned: true, maxVersions: 3 }],
+    })
     actor.send({ type: 'CATALOG.CONNECT' })
     actor.send({
       type: 'CATALOG.LOAD_TABLE',
-      data: { tableSpecName: 'test', tablePayload: {}, payloadType: 'json', payloadCompression: 'none' },
+      data: {
+        tableSpecName: 'test',
+        tablePayload: {},
+        payloadType: 'json',
+        payloadCompression: 'none',
+      },
       duckDbHandle: {},
     } as any)
 

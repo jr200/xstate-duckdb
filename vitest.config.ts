@@ -2,14 +2,13 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
-    globals: true,
+    include: ['tests/**/*.test.ts'],
     environment: 'node',
-    testTimeout: 10000, // 10 second timeout per test
-    hookTimeout: 5000, // 5 second timeout for hooks
+    testTimeout: 10000,
+    hookTimeout: 5000,
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
-      exclude: ['src/**/*.test.ts'],
     },
   },
 })

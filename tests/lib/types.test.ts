@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { DUCKDB_TABLE } from './types'
+import { DUCKDB_TABLE } from '../../src/lib/types'
 
 describe('DUCKDB_TABLE', () => {
   it('has a catalog table definition', () => {

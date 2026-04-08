@@ -6,7 +6,7 @@ import {
   MachineConfig,
   QueryDbParams,
   TableDefinition,
-} from '@jr200/xstate-duckdb'
+} from '@jr200-labs/xstate-duckdb'
 import { useActor, useSelector } from '@xstate/react'
 import { InstantiationProgress, LogLevel } from '@duckdb/duckdb-wasm'
 import { DisplayOutputResult } from './types'
