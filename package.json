@@ -60,7 +60,7 @@
     "@opentelemetry/core": "^2.10.0",
     "@opentelemetry/sdk-trace-base": "^2.10.0",
     "@statelyai/inspect": "^0.7.2",
-    "@types/pako": "^2.0.4",
+    "@types/pako": "^3.0.0",
     "@vitest/coverage-v8": "^4.1.10",
     "apache-arrow": "^21.2.0",
     "eslint": "^10.8.0",
