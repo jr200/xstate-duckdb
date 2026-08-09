@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.9.0](https://github.com/jr200-labs/xstate-duckdb/compare/v1.8.5...v1.9.0) (2026-08-09)
+
+
+### Features
+
+* **deps:** update dependency @types/pako to v3 ([#132](https://github.com/jr200-labs/xstate-duckdb/issues/132)) ([d361b5b](https://github.com/jr200-labs/xstate-duckdb/commit/d361b5bcf2e38fcc50659bab8f0ae07f2f259705))
+
+
+### Bug Fixes
+
+* **deps:** update dependency eslint to ^10.8.1 ([#135](https://github.com/jr200-labs/xstate-duckdb/issues/135)) ([a6b39f1](https://github.com/jr200-labs/xstate-duckdb/commit/a6b39f1cc1dae0a4b8c5a2d047b49527b8380f7e))
+* **deps:** update dependency jr200-labs/github-action-templates to shared-v0.1.36 ([#136](https://github.com/jr200-labs/xstate-duckdb/issues/136)) ([c5093b9](https://github.com/jr200-labs/xstate-duckdb/commit/c5093b94f6d72396f744bf5c36390b4d27851f18))
+* **deps:** update dependency vite to ^8.2.1 ([#133](https://github.com/jr200-labs/xstate-duckdb/issues/133)) ([eafc664](https://github.com/jr200-labs/xstate-duckdb/commit/eafc664857c4bf7c2760f023b497d7c0a62930a7))
+* project configured multimap values ([#137](https://github.com/jr200-labs/xstate-duckdb/issues/137)) ([b7b82e8](https://github.com/jr200-labs/xstate-duckdb/commit/b7b82e81afb97dbf0e7eb20de19ea08be0706b65))
+
 ## [1.8.5](https://github.com/jr200-labs/xstate-duckdb/compare/v1.8.4...v1.8.5) (2026-08-04)
 
 
