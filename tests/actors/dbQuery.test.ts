@@ -150,6 +150,24 @@ describe('duckdbRunQuery', () => {
     expect((result as Map<string, any[]>).get('a')).toHaveLength(2)
   })
 
+  it('projects multimap values when a value field is configured', async () => {
+    const rows = [
+      { cat: 'a', val: 1 },
+      { cat: 'a', val: 2 },
+      { cat: 'b', val: 3 },
+    ]
+    const conn = createMockConnection(arrowRows(rows))
+
+    const result = await duckdbRunQuery({
+      description: 'mm-value-test',
+      sql: 'SELECT *',
+      resultOptions: { type: 'multimap', key: 'cat', value: 'val' },
+      connection: conn,
+    })
+
+    expect((result as Map<string, number[]>).get('a')).toEqual([1, 2])
+  })
+
   it('returns firstvalue result type', async () => {
     const rows = [{ count: 42 }]
     const conn = createMockConnection(arrowRows(rows))

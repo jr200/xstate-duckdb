@@ -101,7 +101,7 @@ function formatResult(
     if (!Array.isArray(result)) {
       throw new Error('Result must be an array for multimap transformation')
     }
-    transformed = arrayToObjectMultiMap(result, resultOptions.key!)
+    transformed = arrayToObjectMultiMap(result, resultOptions.key!, resultOptions.value)
   } else if (resultOptions.type === 'dictionary') {
     if (!Array.isArray(result)) {
       throw new Error('Result must be an array for dictionary transformation')

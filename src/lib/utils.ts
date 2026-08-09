@@ -14,7 +14,7 @@ export function arrayToObjectMap(array: any[], key: string): Map<string, any> {
   return map
 }
 
-export function arrayToObjectMultiMap(array: any[], key: string): Map<string, any[]> {
+export function arrayToObjectMultiMap(array: any[], key: string, value?: string): Map<string, any[]> {
   const map = new Map<string, any[]>()
   array.forEach((item) => {
     const keyValue = item[key]
@@ -24,7 +24,7 @@ export function arrayToObjectMultiMap(array: any[], key: string): Map<string, an
     if (!map.has(keyValue)) {
       map.set(keyValue, [])
     }
-    map.get(keyValue)!.push(item)
+    map.get(keyValue)!.push(value === undefined ? item : item[value])
   })
   return map
 }
